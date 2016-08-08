@@ -1,5 +1,6 @@
 {-# LANGUAGE TypeFamilies, MultiParamTypeClasses, FlexibleInstances, DeriveFunctor
-           , GeneralizedNewtypeDeriving, UndecidableInstances, StandaloneDeriving #-}
+           , GeneralizedNewtypeDeriving, UndecidableInstances, StandaloneDeriving
+           , IncoherentInstances #-}
 module Control.Effects where
 
 import Interlude
