@@ -40,6 +40,13 @@ handleStateIO initial m = do
     m & handleGetState (liftIO  (readIORef  ref))
       & handleSetState (liftIO . writeIORef ref)
 
+handleState :: Monad m => s
+                       -> EffectHandler (GetState s)
+                         (EffectHandler (SetState s) 
+                         (StateT s m)) a
+                       -> m a
+handleState initial m = evalStateT (handleSetState put $ handleGetState get m) initial
+
 handleSubstate :: forall s t m a. (MonadEffect (GetState s) m, MonadEffect (SetState s) m)
                => Lens' s t
                -> t
