@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies, MultiParamTypeClasses, FlexibleInstances, DeriveFunctor
            , GeneralizedNewtypeDeriving, UndecidableInstances, StandaloneDeriving
-           , IncoherentInstances, RankNTypes #-}
+           , IncoherentInstances, RankNTypes, ConstraintKinds #-}
 module Control.Effects1 where
 
 import Interlude
@@ -11,13 +11,14 @@ import Control.Monad.Base
 
 type family EffectMsg1 eff :: * -> *
 type family EffectRes1 eff :: * -> *
+type family EffectCon1 eff :: * -> Constraint
 
 class Monad m => MonadEffect1 eff m where
     -- | Use the effect described by 'eff'.
-    effect1 :: proxy eff -> EffectMsg1 eff a -> m (EffectRes1 eff a)
+    effect1 :: EffectCon1 eff a => proxy eff -> EffectMsg1 eff a -> m (EffectRes1 eff a)
 
 newtype EffHandling1 eff m = EffHandling1 {
-    getHandling1 :: forall a. EffectMsg1 eff a -> m (EffectRes1 eff a) }
+    getHandling1 :: forall a. EffectCon1 eff a => EffectMsg1 eff a -> m (EffectRes1 eff a) }
 
 -- | The 'EffectHandler1' is rally just a 'ReaderT' carrying around the function that knows how to
 --   handle the effect.
@@ -47,6 +48,6 @@ instance Monad m => MonadEffect1 eff (EffectHandler1 eff m) where
     effect1 _ msg = EffectHandler1 (ReaderT (($ msg) . getHandling1))
 
 -- | Handle the effect described by 'eff'.
-handleEffect1 :: Monad m => (forall a. EffectMsg1 eff a -> m (EffectRes1 eff a))
+handleEffect1 :: Monad m => (forall a. EffectCon1 eff a => EffectMsg1 eff a -> m (EffectRes1 eff a))
              -> EffectHandler1 eff m a -> m a
 handleEffect1 f eh = runReaderT (unpackEffectHandler1 eh) (EffHandling1 f)
