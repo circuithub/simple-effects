@@ -1,19 +1,20 @@
 name:                simple-effects
-version:             0.1.0.1
-synopsis:            Simple project template from stack
+version:             0.1.0.2
+synopsis:            A simple effect system that integrates with MTL
 description:         Please see README.md
-homepage:            https://github.com/githubuser/simple-effects#readme
+homepage:            https://gitlab.com/LukaHorvat/simple-effects
 license:             BSD3
 license-file:        LICENSE
-author:              Author name here
-maintainer:          example@example.com
-copyright:           2016 Author name here
-category:            Web
+author:              Luka Horvat
+maintainer:          luka.horvat9@gmail.com
+copyright:           2016 Luka Horvat
+category:            Control
 build-type:          Simple
 cabal-version:       >=1.10
 
 library
   exposed-modules:     Control.Effects
+                     , Control.Effects1
                      , Control.Effects.State
                      , Control.Effects.Reader
   hs-source-dirs:      src

@@ -1,13 +1,15 @@
 {-# LANGUAGE TypeFamilies, MultiParamTypeClasses, FlexibleInstances, DeriveFunctor
            , GeneralizedNewtypeDeriving, UndecidableInstances, StandaloneDeriving
            , IncoherentInstances #-}
-module Control.Effects where
+module Control.Effects (module Control.Effects, module Control.Effects1) where
 
 import Interlude
 
 import Control.Monad.Reader
 import Control.Monad.Trans.Control
 import Control.Monad.Base
+
+import Control.Effects1
 
 type family EffectMsg eff :: *
 type family EffectRes eff :: *
