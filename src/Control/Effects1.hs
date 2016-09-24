@@ -11,7 +11,7 @@ import Control.Monad.Base
 
 type family EffectMsg1 eff :: * -> *
 type family EffectRes1 eff :: * -> *
-type family EffectCon1 eff :: * -> Constraint
+type family EffectCon1 eff a :: Constraint
 
 class Monad m => MonadEffect1 eff m where
     -- | Use the effect described by 'eff'.
