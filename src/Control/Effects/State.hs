@@ -17,16 +17,19 @@ type instance EffectRes (GetState s) = s
 type instance EffectMsg (SetState s) = s
 type instance EffectRes (SetState s) = ()
 
+type MonadEffectState s m = (MonadEffect (GetState s) m, MonadEffect (SetState s) m)
+type EffectHandlerState s m = EffectHandler (GetState s) (EffectHandler (SetState s) m)
+
 {-# INLINE getState #-}
-getState :: forall m s. MonadEffect (GetState s) m => m s
+getState :: forall s m. MonadEffect (GetState s) m => m s
 getState = effect (Proxy :: Proxy (GetState s)) ()
 
 {-# INLINE setState #-}
-setState :: forall m s. MonadEffect (SetState s) m => s -> m ()
+setState :: forall s m. MonadEffect (SetState s) m => s -> m ()
 setState = effect (Proxy :: Proxy (SetState s))
 
 {-# INLINE modifyState #-}
-modifyState :: forall m s. (MonadEffect (GetState s) m, MonadEffect (SetState s) m) => (s -> s) -> m ()
+modifyState :: forall s m. MonadEffectState s m => (s -> s) -> m ()
 modifyState f = setState . f =<< getState
 
 {-# INLINE handleGetState #-}
@@ -37,26 +40,20 @@ handleGetState = handleEffect . const
 handleSetState :: Monad m => (s -> m ()) -> EffectHandler (SetState s) m a -> m a
 handleSetState = handleEffect
 
-handleStateIO :: forall m s a. MonadIO m
-              => s -> EffectHandler (GetState s) (EffectHandler (SetState s) m) a -> m a
+{-# INLINE handleState #-}
+handleState :: Monad m => m s -> (s -> m ()) -> EffectHandlerState s m a -> m a
+handleState getter setter = handleSetState setter . handleGetState (lift getter)
+
+handleStateIO :: MonadIO m => s -> EffectHandlerState s m a -> m a
 handleStateIO initial m = do
     ref <- liftIO (newIORef initial)
-    m & handleGetState (liftIO  (readIORef  ref))
-      & handleSetState (liftIO . writeIORef ref)
+    m & handleState (liftIO (readIORef  ref)) (liftIO . writeIORef ref)
 
-{-# INLINE handleState #-}
-handleState :: Monad m => s
-                       -> EffectHandler (GetState s)
-                         (EffectHandler (SetState s)
-                         (StateT s m)) a
-                       -> m a
-handleState initial m = evalStateT (handleSetState put $ handleGetState get m) initial
+{-# INLINE handleStateT #-}
+handleStateT :: Monad m => s -> EffectHandlerState s (StateT s m) a -> m a
+handleStateT initial m = evalStateT (handleSetState put $ handleGetState get m) initial
 
-handleSubstate :: forall s t m a. (MonadEffect (GetState s) m, MonadEffect (SetState s) m)
-               => Lens' s t
-               -> t
-               -> EffectHandler (GetState t) (EffectHandler (SetState t) m) a
-               -> m a
+handleSubstate :: MonadEffectState s m => Lens' s t -> t -> EffectHandlerState t m a -> m a
 handleSubstate lensST initial m = do
     oldState <- getState
     setState (set lensST initial oldState)
@@ -66,5 +63,3 @@ handleSubstate lensST initial m = do
                  setState (oldState & lensST .~ s))
     setState oldState
     return res
-
-type MonadEffectState s m = (MonadEffect (GetState s) m, MonadEffect (SetState s) m)
