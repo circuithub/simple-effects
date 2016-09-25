@@ -1,5 +1,5 @@
 name:                simple-effects
-version:             0.2.0.1
+version:             0.3.0.0    
 synopsis:            A simple effect system that integrates with MTL
 description:         Please see README.md
 homepage:            https://gitlab.com/LukaHorvat/simple-effects

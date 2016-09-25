@@ -40,9 +40,11 @@ instance MonadBaseControl IO m => MonadBaseControl IO (EffectHandler eff m) wher
 
 instance {-# OVERLAPPABLE #-} (MonadEffect eff m, MonadTrans t, Monad (t m))
          => MonadEffect eff (t m) where
+    {-# INLINE effect #-}
     effect p msg = lift (effect p msg)
 
 instance Monad m => MonadEffect eff (EffectHandler eff m) where
+    {-# INLINE effect #-}
     effect _ msg = EffectHandler (ReaderT ($ msg))
 
 -- | Handle the effect described by 'eff'.

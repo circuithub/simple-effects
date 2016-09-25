@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, TypeApplications #-}
 import Interlude
 
 import GHC.IO.Encoding (setLocaleEncoding, utf16)
@@ -13,11 +13,12 @@ mtlSimple = replicateM_ 1000000 mtlSimple'
 
 effectsSimple :: (MonadEffect (GetState Int) m, MonadEffect (SetState Int) m) => m ()
 effectsSimple = replicateM_ 1000000 effectsSimple'
-    where effectsSimple' = setState . (+ (1 :: Int)) =<< getState
+    where effectsSimple' = modifyState (+ (1 :: Int))
 
 main :: IO ()
 main =
     defaultMain
         [ bench "MTL state" $ nfIO (execStateT mtlSimple 0)
-        , bench "Effects state" $ nfIO (handleStateIO (0 :: Int) (effectsSimple >> getState) :: IO Int)
+        , bench "Effects state" $ nfIO effState
         ]
+    where effState = handleStateIO @_ @Int @Int 0 (effectsSimple >> getState)
