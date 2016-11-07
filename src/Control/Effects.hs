@@ -18,7 +18,7 @@ class Monad m => MonadEffect eff m where
     -- | Use the effect described by 'eff'.
     effect :: proxy eff -> EffectMsg eff -> m (EffectRes eff)
 
--- | The 'EffectHandler' is rally just a 'ReaderT' carrying around the function that knows how to
+-- | The 'EffectHandler' is really just a 'ReaderT' carrying around the function that knows how to
 --   handle the effect.
 newtype EffectHandler eff m a = EffectHandler
     { unpackEffectHandler :: ReaderT (EffectMsg eff -> m (EffectRes eff)) m a }
