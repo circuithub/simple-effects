@@ -20,7 +20,7 @@ class Monad m => MonadEffect1 eff m where
 newtype EffHandling1 eff m = EffHandling1 {
     getHandling1 :: forall a. EffectCon1 eff a => EffectMsg1 eff a -> m (EffectRes1 eff a) }
 
--- | The 'EffectHandler1' is rally just a 'ReaderT' carrying around the function that knows how to
+-- | The 'EffectHandler1' is really just a 'ReaderT' carrying around the function that knows how to
 --   handle the effect.
 newtype EffectHandler1 eff m a = EffectHandler1
     { unpackEffectHandler1 :: ReaderT (EffHandling1 eff m) m a }
