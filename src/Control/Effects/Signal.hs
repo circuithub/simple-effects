@@ -7,6 +7,7 @@ module Control.Effects.Signal
 
 import Interlude
 import Prelude (Show(..))
+import Control.Monad.Trans.Except
 
 import Control.Effects
 
@@ -31,37 +32,41 @@ instance {-# OVERLAPPABLE #-} (MonadEffectSignal a b m, MonadTrans t, Monad (t m
          => MonadEffectSignal a b (t m)
 
 -- | The handle function will return a value of this type.
-data ResumeOrBreak b c = Resume b -- ^ Give a value to the caller of @signal@ and keep going.
+data ResumeOrBreak b c = Resume b -- ^ Give a value to the caller of 'signal' and keep going.
                        | Break c -- ^ Continue the execution after the handler. The handler will
                                  --   return this value
 
-data NoResume a = NoResume a deriving (Eq, Ord)
-instance Show (NoResume a) where
-    show = const "NoResume"
-instance Typeable a => Exception (NoResume a)
-
--- | Throw a signal with no possible recovery. The handler is forced to only return the @Break@
---   constructor because it cannot construct a @Void@ value.
+-- | Throw a signal with no possible recovery. The handler is forced to only return the 'Break'
+--   constructor because it cannot construct a 'Void' value.
 --
---   If this function is used along with @handleAsException@, this module behaves like regular
+--   If this function is used along with 'handleAsException', this module behaves like regular
 --   checked exceptions.
 throwSignal :: MonadEffectSignal a Void m => a -> m b
 throwSignal = fmap absurd . signal
 
--- | Handle signals of a computation. The handler function has the option to provide a value
---   to the caller of @signal@ and continue execution there, or do what regular exception handlers
---   do and continue execution after the handler.
-handleSignal :: (MonadCatch m, Typeable c)
-             => (a -> m (ResumeOrBreak b c)) -> EffectHandler (Signal a b) m c -> m c
-handleSignal f a =
-    handle (\(NoResume c) -> return c) $ handleEffect (\s -> do
-        rb <- f s
-        case rb of
-            Resume b -> return b
-            Break c -> throwM (NoResume c)) a
+resumeOrBreak :: (b -> a) -> (c -> a) -> ResumeOrBreak b c -> a
+resumeOrBreak ba _  (Resume b) = ba b
+resumeOrBreak _  ca (Break c)  = ca c
 
--- | This handler can only behave like a regular exception handler. If used along with @throwSignal@
+collapseEither :: Either a a -> a
+collapseEither (Left a) = a
+collapseEither (Right a) = a
+
+-- | Handle signals of a computation. The handler function has the option to provide a value
+--   to the caller of 'signal' and continue execution there, or do what regular exception handlers
+--   do and continue execution after the handler.
+handleSignal :: Monad m
+             => (a -> m (ResumeOrBreak b c))
+             -> EffectHandler (Signal a b) (ExceptT c m) c
+             -> m c
+handleSignal f = fmap collapseEither
+               . runExceptT
+               . handleEffect (resumeOrBreak return throwE <=< lift . f)
+
+-- | This handler can only behave like a regular exception handler. If used along with 'throwSignal'
 --   this module behaves like regular checked exceptions.
-handleAsException :: (MonadCatch m, Typeable c)
-                => (a -> m c) -> EffectHandler (Signal a b) m c -> m c
+handleAsException :: Monad m
+                  => (a -> m c)
+                  -> EffectHandler (Signal a b) (ExceptT c m) c
+                  -> m c
 handleAsException f = handleSignal (fmap Break . f)
