@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleInstances, UndecidableInstances #-}
 module Control.Effects.Signal
     ( MonadEffectSignal(..), ResumeOrBreak(..), throwSignal, handleSignal, handleAsException
-    , Throws, module Control.Effects ) where
+    , Throws, handleException, handleToEither, module Control.Effects ) where
 
 import Interlude
 import Prelude (Show(..))
@@ -14,6 +14,9 @@ import Control.Effects
 data Signal a b
 type instance EffectMsg (Signal a b) = a
 type instance EffectRes (Signal a b) = b
+
+instance Monad m => MonadEffect (Signal e b) (ExceptT e m) where
+    effect _ = throwE
 
 -- | This class allows you to "throw" a signal. For the most part signals are the same as checked
 --   exceptions. The difference here is that the handler has the option to provide the value that
@@ -30,6 +33,7 @@ class MonadEffect (Signal a b) m => MonadEffectSignal a b m | m a -> b where
 type Throws e m = MonadEffectSignal e Void m
 
 instance Monad m => MonadEffectSignal a b (EffectHandler (Signal a b) m)
+instance Monad m => MonadEffectSignal e Void (ExceptT e m)
 instance {-# OVERLAPPABLE #-} (MonadEffectSignal a b m, MonadTrans t, Monad (t m))
          => MonadEffectSignal a b (t m)
 
@@ -72,3 +76,17 @@ handleAsException :: Monad m
                   -> EffectHandler (Signal a b) (ExceptT c m) c
                   -> m c
 handleAsException f = handleSignal (fmap Break . f)
+
+-- | In case only 'throwSignal' is used then the function signatures will have a @'Throws' a m@
+--   constraint or, equivalently, a @'MonadEffectSignal' a Void m@ constraint. In those cases you
+--   can use this function to handle their exceptions. This function will not work for handing other
+--   signals because 'ExceptT' doesn't satisfy other constraints.
+--
+--   The advantage of using this handler is that your inferred transformer stack will have one less
+--   layer which can potentially lead to slight performance increases.
+handleException :: Monad m => (a -> m c) -> ExceptT a m c -> m c
+handleException f = either f return <=< runExceptT
+
+-- | See documentation for 'handleException'. This handler gives you an 'Either'.
+handleToEither :: Monad m => ExceptT e m a -> m (Either e a)
+handleToEither = runExceptT

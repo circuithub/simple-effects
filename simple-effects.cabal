@@ -31,6 +31,7 @@ library
                      , list-t
                      , lens
   default-extensions:  NoImplicitPrelude
+  ghc-options:         -Wall
 
 benchmark bench-effects
   type:                exitcode-stdio-1.0
