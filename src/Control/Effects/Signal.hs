@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleInstances, UndecidableInstances #-}
 module Control.Effects.Signal
     ( MonadEffectSignal(..), ResumeOrBreak(..), throwSignal, handleSignal, handleAsException
-    , module Control.Effects ) where
+    , MonadEffectException, module Control.Effects ) where
 
 import Interlude
 import Prelude (Show(..))
@@ -27,6 +27,8 @@ class MonadEffect (Signal a b) m => MonadEffectSignal a b m | m a -> b where
     signal :: a -> m b
     signal = effect (Proxy :: Proxy (Signal a b))
 
+type MonadEffectException e m = MonadEffectSignal e Void m
+
 instance Monad m => MonadEffectSignal a b (EffectHandler (Signal a b) m)
 instance {-# OVERLAPPABLE #-} (MonadEffectSignal a b m, MonadTrans t, Monad (t m))
          => MonadEffectSignal a b (t m)
@@ -41,7 +43,7 @@ data ResumeOrBreak b c = Resume b -- ^ Give a value to the caller of 'signal' an
 --
 --   If this function is used along with 'handleAsException', this module behaves like regular
 --   checked exceptions.
-throwSignal :: MonadEffectSignal a Void m => a -> m b
+throwSignal :: MonadEffectException a m => a -> m b
 throwSignal = fmap absurd . signal
 
 resumeOrBreak :: (b -> a) -> (c -> a) -> ResumeOrBreak b c -> a
