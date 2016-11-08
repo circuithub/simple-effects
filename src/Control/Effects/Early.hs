@@ -2,7 +2,6 @@
 module Control.Effects.Early (module Control.Effects, Early, earlyReturn, handleEarly) where
 
 import Interlude
-import Prelude (Show(..))
 import Control.Monad.Trans.Except
 
 import Control.Effects

@@ -6,7 +6,6 @@ module Control.Effects.Signal
     , Throws, handleException, handleToEither, module Control.Effects ) where
 
 import Interlude
-import Prelude (Show(..))
 import Control.Monad.Trans.Except
 
 import Control.Effects
@@ -88,5 +87,5 @@ handleException :: Monad m => (a -> m c) -> ExceptT a m c -> m c
 handleException f = either f return <=< runExceptT
 
 -- | See documentation for 'handleException'. This handler gives you an 'Either'.
-handleToEither :: Monad m => ExceptT e m a -> m (Either e a)
+handleToEither :: ExceptT e m a -> m (Either e a)
 handleToEither = runExceptT

@@ -3,7 +3,7 @@
            , IncoherentInstances, RankNTypes, ConstraintKinds #-}
 module Control.Effects1 where
 
-import Interlude
+import Interlude hiding (msg)
 
 import Control.Monad.Reader
 import Control.Monad.Trans.Control
@@ -48,6 +48,6 @@ instance Monad m => MonadEffect1 eff (EffectHandler1 eff m) where
     effect1 _ msg = EffectHandler1 (ReaderT (($ msg) . getHandling1))
 
 -- | Handle the effect described by 'eff'.
-handleEffect1 :: Monad m => (forall a. EffectCon1 eff a => EffectMsg1 eff a -> m (EffectRes1 eff a))
-             -> EffectHandler1 eff m a -> m a
+handleEffect1 :: (forall a. EffectCon1 eff a => EffectMsg1 eff a -> m (EffectRes1 eff a))
+              -> EffectHandler1 eff m b -> m b
 handleEffect1 f eh = runReaderT (unpackEffectHandler1 eh) (EffHandling1 f)

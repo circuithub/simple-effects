@@ -5,7 +5,6 @@ module Control.Effects.State (module Control.Effects.State, module Control.Effec
 import Interlude
 
 import Data.IORef
-import Control.Lens
 
 import Control.Effects
 
@@ -39,11 +38,11 @@ modifyState :: forall s m. MonadEffectState s m => (s -> s) -> m ()
 {-# INLINE modifyState #-}
 modifyState f = setState . f =<< getState
 
-handleGetState :: Monad m => m s -> EffectHandler (GetState s) m a -> m a
+handleGetState :: m s -> EffectHandler (GetState s) m a -> m a
 {-# INLINE handleGetState #-}
 handleGetState = handleEffect . const
 
-handleSetState :: Monad m => (s -> m ()) -> EffectHandler (SetState s) m a -> m a
+handleSetState :: (s -> m ()) -> EffectHandler (SetState s) m a -> m a
 {-# INLINE handleSetState #-}
 handleSetState = handleEffect
 
@@ -60,14 +59,3 @@ handleStateIO initial m = do
 handleStateT :: Monad m => s -> StateT s m a -> m a
 {-# INLINE handleStateT #-}
 handleStateT = flip evalStateT
-
-handleSubstate :: MonadEffectState s m => Lens' s t -> t -> EffectHandlerState t m a -> m a
-handleSubstate lensST initial m = do
-    oldState <- getState
-    setState (set lensST initial oldState)
-    res <- m & handleGetState (view lensST <$> getState)
-             & handleSetState (\s -> do
-                 oldState <- getState
-                 setState (oldState & lensST .~ s))
-    setState oldState
-    return res

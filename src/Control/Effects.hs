@@ -3,7 +3,7 @@
            , IncoherentInstances #-}
 module Control.Effects (module Control.Effects, module Control.Effects1) where
 
-import Interlude
+import Interlude hiding (msg)
 
 import Control.Monad.Reader
 import Control.Monad.Trans.Control
@@ -48,5 +48,5 @@ instance Monad m => MonadEffect eff (EffectHandler eff m) where
     effect _ msg = EffectHandler (ReaderT ($ msg))
 
 -- | Handle the effect described by 'eff'.
-handleEffect :: Monad m => (EffectMsg eff -> m (EffectRes eff)) -> EffectHandler eff m a -> m a
+handleEffect :: (EffectMsg eff -> m (EffectRes eff)) -> EffectHandler eff m a -> m a
 handleEffect f eh = runReaderT (unpackEffectHandler eh) f
