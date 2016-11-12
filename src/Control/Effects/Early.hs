@@ -14,7 +14,7 @@ instance Monad m => MonadEffect (Early a) (ExceptT a m) where
     effect _ = throwE
 
 -- | Allows you to return early from a function. Make sure you 'handleEarly' to get the actual
---   result out
+--   result out.
 earlyReturn :: forall a b m. MonadEffect (Early a) m => a -> m b
 earlyReturn = fmap absurd . effect (Proxy :: Proxy (Early a))
 
