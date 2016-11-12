@@ -15,7 +15,6 @@ import qualified GHC.TypeLits as TL
 import GHC.TypeLits (TypeError, ErrorMessage(..))
 import Control.Effects
 import Control.Monad.Trans.Control
-import Contorl.EffectsM
 
 data Signal a b
 type instance EffectMsg (Signal a b) = a
