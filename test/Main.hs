@@ -5,6 +5,7 @@ import Interlude
 
 import Control.Effects.Signal
 import Control.Effects.State
+import Control.Effects.Parallel
 
 -- Should infer
 ex1 = signal True

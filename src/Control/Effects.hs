@@ -9,6 +9,7 @@ import Control.Monad.Reader
 import Control.Monad.Trans.Control
 import Control.Monad.Base
 
+import Control.Monad.Runnable
 import Control.Effects1
 
 type family EffectMsg eff :: *
@@ -22,18 +23,26 @@ class Monad m => MonadEffect eff m where
 --   handle the effect.
 newtype EffectHandler eff m a = EffectHandler
     { unpackEffectHandler :: ReaderT (EffectMsg eff -> m (EffectRes eff)) m a }
-    deriving (Functor, Applicative, Monad, MonadState s, MonadIO, MonadCatch, MonadThrow, MonadRandom)
+    deriving ( Functor, Applicative, Monad, MonadState s, MonadIO, MonadCatch, MonadThrow
+             , MonadRandom )
 
 instance MonadTrans (EffectHandler eff) where
     lift = EffectHandler . lift
+
+instance RunnableTrans (EffectHandler eff) where
+    type TransformerState (EffectHandler eff) m = EffectMsg eff -> m (EffectRes eff)
+    type TransformerResult (EffectHandler eff) m a = a
+    currentTransState = EffectHandler ask
+    restoreTransState = return
+    runTransformer m = runReaderT (unpackEffectHandler m)
 
 instance MonadReader s m => MonadReader s (EffectHandler eff m) where
     ask = EffectHandler (lift ask)
     local f (EffectHandler rdr) = EffectHandler (ReaderT $ local f . runReaderT rdr)
 
-deriving instance MonadBase IO m => MonadBase IO (EffectHandler eff m)
+deriving instance MonadBase b m => MonadBase b (EffectHandler eff m)
 
-instance MonadBaseControl IO m => MonadBaseControl IO (EffectHandler eff m) where
+instance MonadBaseControl b m => MonadBaseControl b (EffectHandler eff m) where
     type StM (EffectHandler eff m) a = StM (ReaderT (EffectMsg eff -> m (EffectRes eff)) m) a
     liftBaseWith f = EffectHandler $ liftBaseWith $ \q -> f (q . unpackEffectHandler)
     restoreM = EffectHandler . restoreM

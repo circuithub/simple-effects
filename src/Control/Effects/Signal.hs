@@ -14,7 +14,7 @@ import Control.Monad.Trans.Maybe
 import qualified GHC.TypeLits as TL
 import GHC.TypeLits (TypeError, ErrorMessage(..))
 import Control.Effects
-import Control.Monad.Trans.Control
+import Control.Monad.Runnable
 
 data Signal a b
 type instance EffectMsg (Signal a b) = a
@@ -118,7 +118,7 @@ showAllExceptions :: Functor m => ExceptT SomeSignal m a -> m (Either Text a)
 showAllExceptions = fmap (mapLeft getSomeSignal) . runExceptT
 
 -- | A class of monads that throw and catch exceptions of type @e@. An overlappable instance is
---   given so you just need to make sure your transformers have a 'MonadTransControl' instance.
+--   given so you just need to make sure your transformers have a 'RunnableTrans' instance.
 class Throws e m => Handles e m where
     -- | Use this function to handle exceptions without discarding the 'Throws' constraint.
     --   You'll want to use this if you're writing a recursive function. Using the regular handlers
@@ -150,11 +150,12 @@ instance Monad m => Handles e (ExceptT e m) where
     handleRecursive f = ExceptT . (either (runExceptT . f) (return . Right) <=< runExceptT)
     {-# INLINE handleRecursive #-}
 
-instance {-# OVERLAPPABLE #-} (Monad m, Monad (t m), Handles e m, MonadTransControl t)
+instance {-# OVERLAPPABLE #-} (Monad m, Monad (t m), Handles e m, RunnableTrans t)
          => Handles e (t m) where
     handleRecursive f e = do
-        st <- liftWith (\run -> handleRecursive (run . f) (run e))
-        restoreT (return st)
+        st <- currentTransState
+        res <- lift (handleRecursive (\ex -> runTransformer (f ex) st) (runTransformer e st))
+        restoreTransState res
     {-# INLINE handleRecursive #-}
 
 -- | 'handleToEither' that doesn't discard 'Throws' constraints. See documentation for

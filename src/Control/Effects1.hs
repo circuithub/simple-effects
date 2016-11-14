@@ -9,6 +9,8 @@ import Control.Monad.Reader
 import Control.Monad.Trans.Control
 import Control.Monad.Base
 
+import Control.Monad.Runnable
+
 type family EffectMsg1 eff :: * -> *
 type family EffectRes1 eff :: * -> *
 type family EffectCon1 eff a :: Constraint
@@ -28,6 +30,13 @@ newtype EffectHandler1 eff m a = EffectHandler1
 
 instance MonadTrans (EffectHandler1 eff) where
     lift = EffectHandler1 . lift
+
+instance RunnableTrans (EffectHandler1 eff) where
+    type TransformerState (EffectHandler1 eff) m = EffHandling1 eff m
+    type TransformerResult (EffectHandler1 eff) m a = a
+    currentTransState = EffectHandler1 ask
+    restoreTransState = return
+    runTransformer m = runReaderT (unpackEffectHandler1 m)
 
 instance MonadReader s m => MonadReader s (EffectHandler1 eff m) where
     ask = EffectHandler1 (lift ask)
