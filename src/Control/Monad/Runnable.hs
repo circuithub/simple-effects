@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeFamilies, UndecidableInstances, ScopedTypeVariables, FlexibleInstances #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# OPTIONS_GHC -Wno-warnings-deprecations #-}
 module Control.Monad.Runnable where
 
@@ -19,18 +20,11 @@ import Control.Monad.Trans.Maybe
 -- | A class of monads that have a run function.
 --
 --   The 'runMonad' function gives the result inside of IO. The only reason for this is to allow
---   an instance for IO to be written. Other instances /must not/ perform any aditional IO.
+--   an instance for IO to be written. Other instances do not perform any aditional IO.
 --
---
---   The following law needs to hold. It involves 'unsafePerformIO' because we can't make any
---   guarantees about the IO effects that occur when running a computation. The law, however,
---   restricts all other effects.
---
--- @
---   \m -> do st <- 'currentMonadicState'
---            'restoreMonadicState' ('unsafePerformIO' ('runMonad' st m))
---   == 'id'
--- @
+--   Instances for 'Identity', 'IO' and
+--   @('Runnable' m, 'RunnableTrans' t, 'Monad' (t m)) => 'Runnable' (t m)@ are given so users
+--   should only provide additional 'RunnableTrans' instances instead of 'Runnable' ones.
 class Monad m => Runnable m where
     -- | The type of value that needs to be provided to run this monad.
     type MonadicState m :: *
@@ -41,6 +35,11 @@ class Monad m => Runnable m where
     -- | If given a result, reconstruct a monadic compitation.
     restoreMonadicState :: MonadicResult m a -> m a
     -- | Given the required state value and a computation, run the computation up to the IO effect.
+    --   This should effectively run each layer in the transformer stack. The 'MonadicState' should
+    --   hold all the needed information to do so.
+    --
+    --   A more formal description of what it means to run a transformer is given for the
+    --   'runTransformer' function.
     runMonad :: MonadicState m -> m a -> IO (MonadicResult m a)
 
 -- | A class of transformers that can run their effects in the underlying monad.
@@ -85,7 +84,7 @@ instance Runnable IO where
     restoreMonadicState = return
     runMonad _ m = m
 
-instance {-# OVERLAPPABLE #-} (Runnable m, RunnableTrans t, Monad (t m)) => Runnable (t m) where
+instance (Runnable m, RunnableTrans t, Monad (t m)) => Runnable (t m) where
     type MonadicState (t m) = (TransformerState t m, MonadicState m)
     type MonadicResult (t m) a = MonadicResult m (TransformerResult t m a)
     currentMonadicState = (,) <$> currentTransState <*> lift currentMonadicState

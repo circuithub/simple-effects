@@ -23,8 +23,8 @@ class Monad m => MonadEffect eff m where
 --   handle the effect.
 newtype EffectHandler eff m a = EffectHandler
     { unpackEffectHandler :: ReaderT (EffectMsg eff -> m (EffectRes eff)) m a }
-    deriving ( Functor, Applicative, Monad, MonadState s, MonadIO, MonadCatch, MonadThrow
-             , MonadRandom )
+    deriving ( Functor, Applicative, Monad, Alternative, MonadState s, MonadIO, MonadCatch
+             , MonadThrow, MonadRandom )
 
 instance MonadTrans (EffectHandler eff) where
     lift = EffectHandler . lift

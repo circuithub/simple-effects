@@ -1,4 +1,4 @@
-{-# LANGUAGE NoMonomorphismRestriction, FlexibleContexts, ScopedTypeVariables #-}
+{-# LANGUAGE NoMonomorphismRestriction, FlexibleContexts, ScopedTypeVariables, BangPatterns #-}
 module Main where
 
 import Interlude
@@ -15,20 +15,29 @@ ex2 :: Throws Bool m => m ()
 ex2 = throwSignal False
 
 ex3 = do
-    discardAllExceptions ex1
-    showAllExceptions ex2
-    handleException (\(b :: Bool) -> return ()) ex2
+    void $ discardAllExceptions ex1
+    void $ showAllExceptions ex2
+    handleException (\(_ :: Bool) -> return ()) ex2
     handleSignal (\(_ :: Bool) -> Resume 5) ex1
 
-orderTest :: (Test Bool m, MonadEffectState Int m, MonadIO m) => m ()
+orderTest :: (Handles Bool m, MonadEffectState Int m, MonadIO m) => m ()
 orderTest = do
     setState (1 :: Int)
-    _ :: Either Bool () <- handleE $ do
+    _ :: Either Bool () <- handleToEitherRecursive $ do
         setState (2 :: Int)
         void $ throwSignal True
         setState (3 :: Int)
     st :: Int <- getState
     print st
+
+inc :: Int -> Int
+inc !x = x + 1
+
+task :: (MonadEffectState Int m, MonadIO m) => m Int
+task = do
+    replicateM_ 10000000 (modifyState inc)
+    st <- getState
+    st `seq` return st
 
 main :: IO ()
 main = do
@@ -36,3 +45,11 @@ main = do
               & handleStateT (0 :: Int)
     orderTest & handleStateT (0 :: Int)
               & handleException (\(_ :: Bool) -> return ())
+    putStrLn "Starting sequential test"
+    replicateM_ 8 (handleStateT (0 :: Int) task >>= print)
+    putStrLn "Sequential test done"
+    putStrLn "Starting parallel test"
+    handleStateT (0 :: Int) $ do
+        res <- parallelWithSequence (replicate 8 task)
+        mapM_ print res
+    putStrLn "Parallel test done"

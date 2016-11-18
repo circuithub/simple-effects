@@ -36,7 +36,9 @@ setState = effect (Proxy :: Proxy (SetState s))
 
 modifyState :: forall s m. MonadEffectState s m => (s -> s) -> m ()
 {-# INLINE modifyState #-}
-modifyState f = setState . f =<< getState
+modifyState f = do
+    s <- getState
+    let s' = f s in s' `seq` setState s'
 
 handleGetState :: m s -> EffectHandler (GetState s) m a -> m a
 {-# INLINE handleGetState #-}

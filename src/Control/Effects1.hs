@@ -26,7 +26,8 @@ newtype EffHandling1 eff m = EffHandling1 {
 --   handle the effect.
 newtype EffectHandler1 eff m a = EffectHandler1
     { unpackEffectHandler1 :: ReaderT (EffHandling1 eff m) m a }
-    deriving (Functor, Applicative, Monad, MonadState s, MonadIO, MonadCatch, MonadThrow, MonadRandom)
+    deriving ( Functor, Applicative, Monad, Alternative, MonadState s, MonadIO, MonadCatch
+             , MonadThrow, MonadRandom )
 
 instance MonadTrans (EffectHandler1 eff) where
     lift = EffectHandler1 . lift

@@ -44,7 +44,7 @@ test-suite tests
     build-depends:     base >= 4.7 && < 5
                      , simple-effects
                      , interlude-l >= 0.1.0.6
-    ghc-options:       -Wall
+    ghc-options:       -Wall -threaded -with-rtsopts=-N
     default-extensions:NoImplicitPrelude
 
 benchmark bench-effects
