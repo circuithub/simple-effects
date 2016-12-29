@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeFamilies, ScopedTypeVariables, FlexibleContexts, Rank2Types, ConstraintKinds #-}
-{-# LANGUAGE MultiParamTypeClasses, GADTs #-}
+{-# LANGUAGE MultiParamTypeClasses, GADTs, BangPatterns #-}
 module Control.Effects.State (module Control.Effects.State, module Control.Effects1) where
 
 import Interlude hiding (Set, State)
@@ -13,9 +13,9 @@ data Get
 data Set
 data StateMessage s a where
     GetMessage :: StateMessage s Get
-    SetMessage :: s -> StateMessage s Set
+    SetMessage :: !s -> StateMessage s Set
 data StateResult s a where
-    GetResult :: { getGetResult :: s } -> StateResult s Get
+    GetResult :: { getGetResult :: !s } -> StateResult s Get
     SetResult :: StateResult s Set
 
 type instance EffectMsg1 (State s) = StateMessage s

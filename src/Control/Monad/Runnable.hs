@@ -16,6 +16,7 @@ import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Error
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
+-- import Control.Monad.Trans.Cont -- may be impossible to write
 
 -- | A class of monads that have a run function.
 --
