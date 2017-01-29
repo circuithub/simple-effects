@@ -2,7 +2,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Control.Effects.Early
     ( module Control.Effects, Early
-    , earlyReturn, handleEarly, onlyDo, ifNothingEarlyReturn, ifNothingDo ) where
+    , earlyReturn, handleEarly, onlyDo, ifNothingEarlyReturn, ifNothingDo
+    , ifLeftEarlyReturn, ifLeftDo ) where
 
 import Interlude
 import Control.Monad.Trans.Except
@@ -39,3 +40,13 @@ ifNothingEarlyReturn a = maybe (earlyReturn a) return
 --   Otherwise continue with the value inside of the 'Maybe'.
 ifNothingDo :: MonadEffect (Early a) m => m a -> Maybe b -> m b
 ifNothingDo m = maybe (onlyDo m) return
+
+-- | If the value is a 'Left', get the value, process it and early return the result.
+--   Otherwise just return the 'Right' value.
+ifLeftEarlyReturn :: MonadEffect (Early c) m => (a -> c) -> Either a b -> m b
+ifLeftEarlyReturn f = either (earlyReturn . f) return
+
+-- | If the value is a 'Left', get the value, process it and only do the resulting action.
+--   Otherwise just return the 'Right' value.
+ifLeftDo :: MonadEffect (Early c) m => (a -> m c) -> Either a b -> m b
+ifLeftDo f = either (onlyDo . f) return
