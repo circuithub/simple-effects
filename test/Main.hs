@@ -6,6 +6,7 @@ import Interlude
 import Control.Effects.Signal
 import Control.Effects.State
 import Control.Effects.Parallel
+import Control.Effects.Early
 
 -- Should infer
 ex1 = signal True
@@ -20,6 +21,21 @@ ex3 = do
     handleException (\(_ :: Bool) -> return ()) ex2
     handleSignal (\(_ :: Bool) -> Resume 5) ex1
 
+-- Nested Early
+testEarly1 :: Monad m => m Bool
+testEarly1 = handleEarly $ do
+    return ()
+    _ <- earlyReturn True
+    _ <- handleEarly $ do
+        return ()
+        earlyReturn (123 :: Int)
+    _ <- testEarly2
+    return True
+
+testEarly2 :: Monad m => m Char
+testEarly2 = handleEarly $
+    earlyReturn 'a'
+
 orderTest :: (Handles Bool m, MonadEffectState Int m, MonadIO m) => m ()
 orderTest = do
     setState (1 :: Int)
@@ -33,7 +49,7 @@ orderTest = do
 inc :: Int -> Int
 inc !x = x + 1
 
-task :: (MonadEffectState Int m, MonadIO m) => m Int
+task :: (MonadEffectState Int m) => m Int
 task = do
     replicateM_ 10000000 (modifyState inc)
     st <- getState
