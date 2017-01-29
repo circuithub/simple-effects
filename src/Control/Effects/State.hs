@@ -1,9 +1,8 @@
 {-# LANGUAGE TypeFamilies, ScopedTypeVariables, FlexibleContexts, Rank2Types, ConstraintKinds #-}
-{-# LANGUAGE MultiParamTypeClasses, GADTs, BangPatterns #-}
+{-# LANGUAGE MultiParamTypeClasses, GADTs #-}
 module Control.Effects.State (module Control.Effects.State, module Control.Effects1) where
 
-import Interlude hiding (Set, State)
-
+import Import hiding (State)
 import Data.IORef
 
 import Control.Effects1

@@ -3,19 +3,13 @@
 {-# OPTIONS_GHC -Wno-warnings-deprecations #-}
 module Control.Monad.Runnable where
 
-import Interlude hiding (toList, throwError)
-
-import ListT
+import Import
 import qualified Control.Monad.Trans.State.Strict as SS
 import qualified Control.Monad.Trans.State.Lazy as LS
 import qualified Control.Monad.Trans.Writer.Strict as SW
 import qualified Control.Monad.Trans.Writer.Lazy as LW
 import qualified Control.Monad.Trans.RWS.Strict as SR
 import qualified Control.Monad.Trans.RWS.Lazy as LR
-import Control.Monad.Trans.Identity
-import Control.Monad.Trans.Error
-import Control.Monad.Trans.Except
-import Control.Monad.Trans.Maybe
 -- import Control.Monad.Trans.Cont -- may be impossible to write
 
 -- | A class of monads that have a run function.

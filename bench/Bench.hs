@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleContexts, TypeApplications #-}
-import Interlude hiding (modify', execStateT)
 
 import GHC.IO.Encoding (setLocaleEncoding, utf8)
 import Control.Effects.State

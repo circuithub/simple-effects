@@ -3,12 +3,7 @@
            , IncoherentInstances #-}
 module Control.Effects (module Control.Effects, module Control.Effects1) where
 
-import Interlude hiding (msg)
-
-import Control.Monad.Reader
-import Control.Monad.Trans.Control
-import Control.Monad.Base
-
+import Import 
 import Control.Monad.Runnable
 import Control.Effects1
 

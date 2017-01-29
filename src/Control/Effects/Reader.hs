@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, TypeFamilies, FlexibleContexts #-}
 module Control.Effects.Reader (module Control.Effects.Reader, module Control.Effects) where
 
-import Interlude
+import Import
 
 import Control.Effects
 

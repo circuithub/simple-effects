@@ -8,9 +8,8 @@ module Control.Effects.Signal
     , module Control.Monad.Trans.Except, MaybeT(..), discardAllExceptions, showAllExceptions
     , Handles(..), handleToEitherRecursive ) where
 
-import Interlude hiding (TypeError)
+import Import
 import Control.Monad.Trans.Except
-import Control.Monad.Trans.Maybe
 import qualified GHC.TypeLits as TL
 import GHC.TypeLits (TypeError, ErrorMessage(..))
 import Control.Effects
@@ -34,7 +33,7 @@ type family UnhandledError a b :: ErrorMessage where
 instance {-# OVERLAPPABLE #-} Monad m => MonadEffect (Signal e b) (ExceptT e m) where
     effect _ = throwE
 instance (Show e, Monad m) => MonadEffect (Signal e b) (ExceptT SomeSignal m) where
-    effect _ = throwE . SomeSignal . pshow
+    effect _ = throwE . SomeSignal . pack . show
 instance Monad m => MonadEffect (Signal a b) (MaybeT m) where
     effect _ _ = mzero
 instance TypeError (UnhandledError a b)

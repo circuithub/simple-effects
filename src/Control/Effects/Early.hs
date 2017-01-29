@@ -5,8 +5,7 @@ module Control.Effects.Early
     , earlyReturn, handleEarly, onlyDo, ifNothingEarlyReturn, ifNothingDo
     , ifLeftEarlyReturn, ifLeftDo ) where
 
-import Interlude
-import Control.Monad.Trans.Except
+import Import
 
 import Control.Effects
 
@@ -24,7 +23,7 @@ earlyReturn = fmap (getEarlyReturn . absurd) . effect (Proxy :: Proxy (Early a))
 
 -- | Get the result from a computation. Either the early returned one, or the regular result.
 handleEarly :: Monad m => ExceptT (Early a) m a -> m a
-handleEarly = fmap (either getEarlyReturn identity)
+handleEarly = fmap (either getEarlyReturn id)
             . runExceptT
 
 -- | Only do the given action and exit early with it's result.

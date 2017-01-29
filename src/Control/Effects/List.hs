@@ -3,7 +3,8 @@ module Control.Effects.List
     ( module Control.Effects.List
     , module ListT ) where
 
-import Interlude hiding (toList, traverse_, fold, foldMaybe, splitAt, head)
+import Prelude hiding (splitAt, head)
+import Import
 
 import ListT hiding (take)
 

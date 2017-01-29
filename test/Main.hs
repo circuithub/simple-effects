@@ -1,12 +1,13 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleContexts, ScopedTypeVariables, BangPatterns #-}
 module Main where
 
-import Interlude
-
+import Control.Monad.IO.Class
+import Control.Monad
 import Control.Effects.Signal
 import Control.Effects.State
 import Control.Effects.Parallel
 import Control.Effects.Early
+import Data.Function
 
 -- Should infer
 ex1 = signal True
@@ -44,7 +45,7 @@ orderTest = do
         void $ throwSignal True
         setState (3 :: Int)
     st :: Int <- getState
-    print st
+    liftIO (print st)
 
 inc :: Int -> Int
 inc !x = x + 1
@@ -67,5 +68,5 @@ main = do
     putStrLn "Starting parallel test"
     handleStateT (0 :: Int) $ do
         res <- parallelWithSequence (replicate 8 task)
-        mapM_ print res
+        mapM_ (liftIO . print) res
     putStrLn "Parallel test done"

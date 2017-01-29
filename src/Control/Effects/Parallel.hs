@@ -1,10 +1,12 @@
 {-# LANGUAGE ScopedTypeVariables, FlexibleContexts #-}
 module Control.Effects.Parallel where
 
-import Interlude hiding (toList)
+import Import
 
+import GHC.MVar
 import GHC.IO.Unsafe
 import Data.Array.IO
+import Control.Concurrent
 
 import Control.Monad.Runnable
 import Control.Effects.State
