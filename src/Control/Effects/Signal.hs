@@ -6,7 +6,7 @@ module Control.Effects.Signal
     ( MonadEffectSignal(..), ResumeOrBreak(..), throwSignal, handleSignal
     , Throws, handleException, handleToEither, module Control.Effects
     , module Control.Monad.Trans.Except, MaybeT(..), discardAllExceptions, showAllExceptions
-    , Handles(..), handleToEitherRecursive ) where
+    , Handles(..), handleToEitherRecursive, SomeSignal ) where
 
 import Import
 import Control.Monad.Trans.Except
