@@ -1,5 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, TypeFamilies, FlexibleContexts, MultiParamTypeClasses #-}
 {-# LANGUAGE DataKinds, GADTs #-}
+-- | Add non-determinism to your monad. Uses the 'ListT' transformer under the hood.
 module Control.Effects.List
     ( module Control.Effects.List
     , module ListT ) where
@@ -12,7 +13,7 @@ import ListT hiding (take)
 import Control.Effects
 import Data.Kind
 
-data NonDeterministic = Choose Type
+newtype NonDeterministic = Choose Type
 data instance Effect NonDeterministic method mr where
     ChooseMsg :: { getChooseMsg :: [a] } -> Effect NonDeterministic ('Choose a) 'Msg
     ChooseRes :: { getChooseRes :: a } -> Effect NonDeterministic ('Choose a) 'Res
