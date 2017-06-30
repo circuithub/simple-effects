@@ -14,7 +14,6 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     Control.Effects
-                     , Control.Effects1
                      , Control.Effects.State
                      , Control.Effects.Reader
                      , Control.Effects.List

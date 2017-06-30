@@ -1,5 +1,5 @@
 {-# LANGUAGE RankNTypes, TypeFamilies, FlexibleContexts, ScopedTypeVariables, MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, DataKinds, GADTs #-}
 module Control.Effects.Early
     ( module Control.Effects, Early
     , earlyReturn, handleEarly, onlyDo, ifNothingEarlyReturn, ifNothingDo
@@ -9,21 +9,23 @@ import Import
 
 import Control.Effects
 
-newtype Early a = Early { getEarlyReturn :: a }
-type instance EffectMsg (Early a) = a
-type instance EffectRes (Early a) = Void
+newtype EarlyValue a = EarlyValue { getEarlyValue :: a }
+data Early a = Early
+data instance Effect (Early a) method mr where
+    EarlyMsg :: a -> Effect (Early a) 'Early 'Msg
+    EarlyRes :: { getEarlyRes :: Void } -> Effect (Early a) 'Early 'Res
 
-instance (Monad m, a ~ b) => MonadEffect (Early a) (ExceptT (Early b) m) where
-    effect _ = throwE . Early
+instance (Monad m, a ~ b) => MonadEffect (Early a) (ExceptT (EarlyValue b) m) where
+    effect (EarlyMsg a) = EarlyRes <$> throwE (EarlyValue a)
 
 -- | Allows you to return early from a function. Make sure you 'handleEarly' to get the actual
 --   result out.
 earlyReturn :: forall a b m. MonadEffect (Early a) m => a -> m b
-earlyReturn = fmap (getEarlyReturn . absurd) . effect (Proxy :: Proxy (Early a))
+earlyReturn a = fmap (getEarlyValue . absurd . getEarlyRes) . effect $ EarlyMsg a
 
 -- | Get the result from a computation. Either the early returned one, or the regular result.
-handleEarly :: Monad m => ExceptT (Early a) m a -> m a
-handleEarly = fmap (either getEarlyReturn id)
+handleEarly :: Monad m => ExceptT (EarlyValue a) m a -> m a
+handleEarly = fmap (either getEarlyValue id)
             . runExceptT
 
 -- | Only do the given action and exit early with it's result.

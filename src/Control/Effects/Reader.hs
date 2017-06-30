@@ -1,20 +1,19 @@
 {-# LANGUAGE ScopedTypeVariables, TypeFamilies, FlexibleContexts #-}
+{-# LANGUAGE DataKinds, GADTs #-}
 module Control.Effects.Reader (module Control.Effects.Reader, module Control.Effects) where
-
-import Import
 
 import Control.Effects
 
-data ReadEnv e
-
-type instance EffectMsg (ReadEnv e) = ()
-type instance EffectRes (ReadEnv e) = e
+data ReadEnv e = ReadEnv
+data instance Effect (ReadEnv e) method mr where
+    ReadEnvMsg :: Effect (ReadEnv e) 'ReadEnv 'Msg
+    ReadEnvRes :: { getReadEnvRes :: e } -> Effect (ReadEnv e) 'ReadEnv 'Res
 
 readEnv :: forall e m. MonadEffect (ReadEnv e) m => m e
-readEnv = effect (Proxy :: Proxy (ReadEnv e)) ()
+readEnv = getReadEnvRes <$> effect ReadEnvMsg
 
-handleReadEnv :: m e -> EffectHandler (ReadEnv e) m a -> m a
-handleReadEnv = handleEffect . const
+handleReadEnv :: Functor m => m e -> EffectHandler (ReadEnv e) m a -> m a
+handleReadEnv m = handleEffect (\ReadEnvMsg -> ReadEnvRes <$> m)
 
 handleSubreader :: MonadEffect (ReadEnv e) m => (e -> e') -> EffectHandler (ReadEnv e') m a -> m a
 handleSubreader f = handleReadEnv (f <$> readEnv)

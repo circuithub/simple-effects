@@ -1,9 +1,14 @@
 {-# LANGUAGE TypeFamilies, ScopedTypeVariables, FlexibleContexts, Rank2Types, ConstraintKinds #-}
 {-# LANGUAGE DeriveAnyClass, OverloadedStrings, MultiParamTypeClasses, NoMonomorphismRestriction #-}
 {-# LANGUAGE FlexibleInstances, UndecidableInstances, DataKinds, TypeOperators #-}
+{-# LANGUAGE GADTs, TypeApplications #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
+-- | This effect allows you to "throw" a signal. For the most part signals are the same as checked
+--   exceptions. The difference here is that the handler has the option to provide the value that
+--   will be the result /of calling the 'signal' function/. This effectively allows you to have
+--   recoverable exceptions at the throw site, instead of just at the handling site.
 module Control.Effects.Signal
-    ( MonadEffectSignal(..), ResumeOrBreak(..), throwSignal, handleSignal
+    ( ResumeOrBreak(..), Signal, throwSignal, handleSignal
     , Throws, handleException, handleToEither, module Control.Effects
     , module Control.Monad.Trans.Except, MaybeT(..), discardAllExceptions, showAllExceptions
     , Handles(..), handleToEitherRecursive, SomeSignal ) where
@@ -15,9 +20,10 @@ import GHC.TypeLits (TypeError, ErrorMessage(..))
 import Control.Effects
 import Control.Monad.Runnable
 
-data Signal a b
-type instance EffectMsg (Signal a b) = a
-type instance EffectRes (Signal a b) = b
+data Signal a b = Signal
+data instance Effect (Signal a b) method mr where
+    SignalMsg :: a -> Effect (Signal a b) 'Signal 'Msg
+    SignalRes :: { getSignalRes :: b } -> Effect (Signal a b) 'Signal 'Res
 
 data SomeSignal = SomeSignal { getSomeSignal :: Text } deriving (Eq, Ord, Read, Show)
 
@@ -31,35 +37,21 @@ type family UnhandledError a b :: ErrorMessage where
      ':$$: 'TL.Text "You need to handle all the signals before running the computation"
 
 instance {-# OVERLAPPABLE #-} Monad m => MonadEffect (Signal e b) (ExceptT e m) where
-    effect _ = throwE
+    effect (SignalMsg a) = throwE a
 instance (Show e, Monad m) => MonadEffect (Signal e b) (ExceptT SomeSignal m) where
-    effect _ = throwE . SomeSignal . pack . show
+    effect (SignalMsg a) = throwE . SomeSignal . pack . show $ a
 instance Monad m => MonadEffect (Signal a b) (MaybeT m) where
-    effect _ _ = mzero
+    effect _ = mzero
 instance TypeError (UnhandledError a b)
       => MonadEffect (Signal a b) IO where
     effect = undefined
--- | This class allows you to "throw" a signal. For the most part signals are the same as checked
---   exceptions. The difference here is that the handler has the option to provide the value that
---   will be the result /of calling the 'signal' function/. This effectively allows you to have
---   recoverable exceptions at the call site, instead of just at the handling site.
---
---   This class can be considered an alias for @'MonadEffect' ('Signal' a b)@ so your code isn't
---   required to provide any instances.
-class MonadEffect (Signal a b) m => MonadEffectSignal a b m where
-    -- | There are no restrictions on the type of values that can be thrown or returned.
-    signal :: a -> m b
-    signal = effect (Proxy :: Proxy (Signal a b))
+instance (Monad m, b ~ c) => MonadEffect (Signal a c) (EffectHandler (Signal a b) m) where
+    effect = effect @(Signal a b)
 
-type Throws e m = MonadEffectSignal e Void m
+signal :: MonadEffect (Signal a b) m => a -> m b
+signal a = getSignalRes <$> effect (SignalMsg a)
 
-instance (Monad m, b ~ c) => MonadEffectSignal a c (EffectHandler (Signal a b) m)
-instance Monad m => MonadEffectSignal a b (MaybeT m)
-instance {-# OVERLAPPABLE #-} Monad m => MonadEffectSignal e b (ExceptT e m)
-instance (Monad m, Show e) => MonadEffectSignal e b (ExceptT SomeSignal m)
-instance MonadEffect (Signal a b) IO => MonadEffectSignal a b IO
-instance {-# OVERLAPPABLE #-} (MonadEffectSignal a b m, MonadTrans t, Monad (t m))
-         => MonadEffectSignal a b (t m)
+type Throws e m = MonadEffect (Signal e Void) m
 
 -- | The handle function will return a value of this type.
 data ResumeOrBreak b c = Resume b -- ^ Give a value to the caller of 'signal' and keep going.
@@ -85,13 +77,18 @@ collapseEither (Right a) = a
 -- | Handle signals of a computation. The handler function has the option to provide a value
 --   to the caller of 'signal' and continue execution there, or do what regular exception handlers
 --   do and continue execution after the handler.
-handleSignal :: Monad m
+handleSignal :: forall a b c m. Monad m
              => (a -> m (ResumeOrBreak b c))
              -> EffectHandler (Signal a b) (ExceptT c m) c
              -> m c
 handleSignal f = fmap collapseEither
                . runExceptT
-               . handleEffect (resumeOrBreak return throwE <=< lift . f)
+               . handleEffect h
+    where
+    h :: forall method. Effect (Signal a b) method 'Msg -> ExceptT c m (Effect (Signal a b) method 'Res)
+    h (SignalMsg a) = do
+        rb <- lift (f a)
+        resumeOrBreak (return . SignalRes) throwE rb
 
 -- | This handler can only behave like a regular exception handler. If used along with 'throwSignal'
 --   this module behaves like regular checked exceptions.
@@ -102,7 +99,7 @@ handleException f = either f return <=< runExceptT
 handleToEither :: ExceptT e m a -> m (Either e a)
 handleToEither = runExceptT
 
--- | Discard all the 'Throws' and 'MonadEffectSignal' constraints. If any exception was thrown
+-- | Discard all the 'Throws' and 'Signal' constraints. If any exception was thrown
 --   the result will be 'Nothing'.
 discardAllExceptions :: MaybeT m a -> m (Maybe a)
 discardAllExceptions = runMaybeT
@@ -111,7 +108,7 @@ mapLeft :: (a -> c) -> Either a b -> Either c b
 mapLeft f (Left a) = Left (f a)
 mapLeft _ (Right b) = Right b
 
--- | Satisfies all the 'Throws' and 'MonadEffectSignal' constraints /if/ they all throw 'Show'able
+-- | Satisfies all the 'Throws' and 'Signal' constraints /if/ they all throw 'Show'able
 --   exceptions. The first thrown exception will be shown and returned as a 'Left' result.
 showAllExceptions :: Functor m => ExceptT SomeSignal m a -> m (Either Text a)
 showAllExceptions = fmap (mapLeft getSomeSignal) . runExceptT

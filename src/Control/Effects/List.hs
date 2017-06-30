@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables, TypeFamilies, FlexibleContexts, MultiParamTypeClasses #-}
+{-# LANGUAGE DataKinds, GADTs #-}
 module Control.Effects.List
     ( module Control.Effects.List
     , module ListT ) where
@@ -9,22 +10,22 @@ import Import
 import ListT hiding (take)
 
 import Control.Effects
+import Data.Kind
 
-data NonDeterministic
+data NonDeterministic = Choose Type
+data instance Effect NonDeterministic method mr where
+    ChooseMsg :: { getChooseMsg :: [a] } -> Effect NonDeterministic ('Choose a) 'Msg
+    ChooseRes :: { getChooseRes :: a } -> Effect NonDeterministic ('Choose a) 'Res
 
-type instance EffectMsg1 NonDeterministic = []
-type instance EffectRes1 NonDeterministic = Identity
-type instance EffectCon1 NonDeterministic a = ()
-
-instance Monad m => MonadEffect1 NonDeterministic (ListT m) where
-    effect1 _ = fmap Identity . fromFoldable
+instance Monad m => MonadEffect NonDeterministic (ListT m) where
+    effect (ChooseMsg list) = ChooseRes <$> fromFoldable list
 
 -- | Runs the rest of the computation for every value in the list
-choose :: MonadEffect1 NonDeterministic m => [a] -> m a
-choose = fmap runIdentity . effect1 (Proxy :: Proxy NonDeterministic)
+choose :: MonadEffect NonDeterministic m => [a] -> m a
+choose = fmap getChooseRes . effect . ChooseMsg
 
 -- | Signals that this branch of execution failed to produce a result.
-deadEnd :: MonadEffect1 NonDeterministic m => m a
+deadEnd :: MonadEffect NonDeterministic m => m a
 deadEnd = choose []
 
 -- | Execute all the effects and collect the result in a list.
@@ -42,7 +43,7 @@ traverseAllResults = traverse_
 foldAllResults :: Monad m => (r -> a -> m r) -> r -> ListT m a -> m r
 foldAllResults = fold
 
--- | Same as 'foldAllResults' but the folding function has the ability to terminate eary by
+-- | Same as 'foldAllResults' but the folding function has the ability to terminate early by
 --   returning Nothing.
 foldWithEarlyTermination :: Monad m => (r -> a -> m (Maybe r)) -> r -> ListT m a -> m r
 foldWithEarlyTermination = foldMaybe

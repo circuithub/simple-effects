@@ -1,56 +1,66 @@
 {-# LANGUAGE TypeFamilies, MultiParamTypeClasses, FlexibleInstances, DeriveFunctor
            , GeneralizedNewtypeDeriving, UndecidableInstances, StandaloneDeriving
            , IncoherentInstances #-}
-module Control.Effects (module Control.Effects, module Control.Effects1) where
+{-# LANGUAGE DataKinds, PolyKinds, TypeInType, Rank2Types, TypeOperators, ConstraintKinds #-}
+module Control.Effects (module Control.Effects) where
 
-import Import 
+import Import
 import Control.Monad.Runnable
-import Control.Effects1
+import Data.Kind
 
-type family EffectMsg eff :: *
-type family EffectRes eff :: *
+data MsgOrRes = Msg | Res
+data family Effect (effKind :: Type) :: effKind -> MsgOrRes -> Type
 
-class Monad m => MonadEffect eff m where
-    -- | Use the effect described by 'eff'.
-    effect :: proxy eff -> EffectMsg eff -> m (EffectRes eff)
+class Monad m => MonadEffect effKind m where
+    -- | Use the effect described by 'method'.
+    effect :: Effect effKind method 'Msg -> m (Effect effKind method 'Res)
+
+newtype EffectWithKind effKind m = EffectWithKind
+    { getEffectWithKind :: forall method. Effect effKind method 'Msg -> m (Effect effKind method 'Res) }
 
 -- | The 'EffectHandler' is really just a 'ReaderT' carrying around the function that knows how to
 --   handle the effect.
-newtype EffectHandler eff m a = EffectHandler
-    { unpackEffectHandler :: ReaderT (EffectMsg eff -> m (EffectRes eff)) m a }
+newtype EffectHandler effKind m a = EffectHandler
+    { unpackEffectHandler :: ReaderT (EffectWithKind effKind m) m a }
     deriving ( Functor, Applicative, Monad, Alternative, MonadState s, MonadIO, MonadCatch
              , MonadThrow, MonadRandom )
 
-instance MonadTrans (EffectHandler eff) where
+instance MonadTrans (EffectHandler effKind) where
     lift = EffectHandler . lift
 
-instance RunnableTrans (EffectHandler eff) where
-    type TransformerState (EffectHandler eff) m = EffectMsg eff -> m (EffectRes eff)
-    type TransformerResult (EffectHandler eff) m a = a
+instance RunnableTrans (EffectHandler effKind) where
+    type TransformerState (EffectHandler effKind) m = EffectWithKind effKind m
+    type TransformerResult (EffectHandler effKind) m a = a
     currentTransState = EffectHandler ask
     restoreTransState = return
     runTransformer m = runReaderT (unpackEffectHandler m)
 
-instance MonadReader s m => MonadReader s (EffectHandler eff m) where
+instance MonadReader s m => MonadReader s (EffectHandler effKind m) where
     ask = EffectHandler (lift ask)
     local f (EffectHandler rdr) = EffectHandler (ReaderT $ local f . runReaderT rdr)
 
-deriving instance MonadBase b m => MonadBase b (EffectHandler eff m)
+deriving instance MonadBase b m => MonadBase b (EffectHandler effKind m)
 
-instance MonadBaseControl b m => MonadBaseControl b (EffectHandler eff m) where
-    type StM (EffectHandler eff m) a = StM (ReaderT (EffectMsg eff -> m (EffectRes eff)) m) a
+instance MonadBaseControl b m => MonadBaseControl b (EffectHandler effKind m) where
+    type StM (EffectHandler effKind m) a = StM (ReaderT (EffectWithKind effKind m) m) a
     liftBaseWith f = EffectHandler $ liftBaseWith $ \q -> f (q . unpackEffectHandler)
     restoreM = EffectHandler . restoreM
 
-instance {-# OVERLAPPABLE #-} (MonadEffect eff m, MonadTrans t, Monad (t m))
-         => MonadEffect eff (t m) where
+instance {-# OVERLAPPABLE #-} (MonadEffect method m, MonadTrans t, Monad (t m))
+         => MonadEffect method (t m) where
     {-# INLINE effect #-}
-    effect p msg = lift (effect p msg)
+    effect msg = lift (effect msg)
 
-instance Monad m => MonadEffect eff (EffectHandler eff m) where
+instance Monad m => MonadEffect effKind (EffectHandler effKind m) where
     {-# INLINE effect #-}
-    effect _ msg = EffectHandler (ReaderT ($ msg))
+    effect msg = EffectHandler (ReaderT (($ msg) . getEffectWithKind))
 
--- | Handle the effect described by 'eff'.
-handleEffect :: (EffectMsg eff -> m (EffectRes eff)) -> EffectHandler eff m a -> m a
-handleEffect f eh = runReaderT (unpackEffectHandler eh) f
+-- | Handle the effect described by 'effKind'.
+handleEffect ::
+    (forall method. Effect effKind method 'Msg -> m (Effect effKind method 'Res))
+    -> EffectHandler effKind m a -> m a
+handleEffect f eh = runReaderT (unpackEffectHandler eh) (EffectWithKind f)
+
+type family MonadEffects effs m :: Constraint where
+    MonadEffects '[] m = ()
+    MonadEffects (eff ': effs) m = (MonadEffect eff m, MonadEffects effs m)

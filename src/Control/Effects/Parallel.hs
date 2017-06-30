@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, FlexibleContexts #-}
 module Control.Effects.Parallel where
 
-import Import
+import Import hiding (State)
 
 import GHC.MVar
 import GHC.IO.Unsafe
@@ -17,7 +17,7 @@ forkThread proc = do
     _ <- forkFinally proc (\_ -> putMVar h ())
     return h
 
-appendState :: forall s m a proxy. (Semigroup s, MonadEffectState s m)
+appendState :: forall s m a proxy. (Semigroup s, MonadEffect (State s) m)
             => proxy s -> m a -> m a
 appendState _ m = do
     s :: s <- getState
