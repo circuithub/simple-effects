@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeFamilies, ScopedTypeVariables, FlexibleContexts, Rank2Types, ConstraintKinds #-}
-{-# LANGUAGE DeriveAnyClass, OverloadedStrings, MultiParamTypeClasses, NoMonomorphismRestriction #-}
+{-# LANGUAGE MultiParamTypeClasses, NoMonomorphismRestriction #-}
 {-# LANGUAGE FlexibleInstances, UndecidableInstances, DataKinds, TypeOperators #-}
 {-# LANGUAGE GADTs, TypeApplications #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
@@ -25,7 +25,7 @@ data instance Effect (Signal a b) method mr where
     SignalMsg :: a -> Effect (Signal a b) 'Signal 'Msg
     SignalRes :: { getSignalRes :: b } -> Effect (Signal a b) 'Signal 'Res
 
-data SomeSignal = SomeSignal { getSomeSignal :: Text } deriving (Eq, Ord, Read, Show)
+newtype SomeSignal = SomeSignal { getSomeSignal :: Text } deriving (Eq, Ord, Read, Show)
 
 type family UnhandledError a b :: ErrorMessage where
     UnhandledError a Void =
