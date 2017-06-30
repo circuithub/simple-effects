@@ -1,6 +1,15 @@
 {-# LANGUAGE TypeFamilies, ScopedTypeVariables, FlexibleContexts, Rank2Types, ConstraintKinds #-}
 {-# LANGUAGE MultiParamTypeClasses, GADTs #-}
 {-# LANGUAGE DataKinds, TypeInType #-}
+-- | The 'MonadState' you know and love with some differences. First, there's no functional
+--   dependency limiting your stack to a single state type. This means less type inference so
+--   it might not be enough to just write 'getState'. Write 'getState @MyStateType' instead using
+--   TypeApplications.
+--
+--   Second, the functions have less generic names and are called 'getState' and 'setState'.
+--
+--   Third, since it's a part of this effect framework, you get a 'handleState' function with
+--   which you can provide a different state implementation _at runtime_.
 module Control.Effects.State (module Control.Effects.State, module Control.Effects) where
 
 import Import hiding (State)
@@ -34,6 +43,7 @@ modifyState f = do
     let s' = f s in s' `seq` setState s'
 {-# INLINE modifyState #-}
 
+-- | Handle the 'MonadEffect (State s)' constraint by providing custom handling functions.
 handleState :: forall m s a. Monad m => m s -> (s -> m ())
             -> EffectHandler (State s) m a -> m a
 handleState getter setter =
@@ -43,12 +53,14 @@ handleState getter setter =
           handler (SetStateMsg s) = SetStateRes <$ setter s
 {-# INLINE handleState #-}
 
+-- | Handle the state requirement using an 'IORef'.
 handleStateIO :: MonadIO m => s -> EffectHandler (State s) m a -> m a
 handleStateIO initial m = do
     ref <- liftIO (newIORef initial)
     m & handleState (liftIO (readIORef  ref)) (liftIO . writeIORef ref)
 {-# INLINE handleStateIO #-}
 
+-- | Handle the state requirement using the standard 'StateT' transformer.
 handleStateT :: Monad m => s -> StateT s m a -> m a
 handleStateT = flip evalStateT
 {-# INLINE handleStateT #-}
