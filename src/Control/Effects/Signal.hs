@@ -11,7 +11,7 @@ module Control.Effects.Signal
     ( ResumeOrBreak(..), Signal, throwSignal, handleSignal
     , Throws, handleException, handleToEither, module Control.Effects
     , module Control.Monad.Trans.Except, MaybeT(..), discardAllExceptions, showAllExceptions
-    , Handles(..), handleToEitherRecursive, SomeSignal ) where
+    , Handles(..), handleToEitherRecursive, SomeSignal, signal ) where
 
 import Import
 import Control.Monad.Trans.Except

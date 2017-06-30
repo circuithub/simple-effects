@@ -37,7 +37,7 @@ testEarly2 :: Monad m => m Char
 testEarly2 = handleEarly $
     earlyReturn 'a'
 
-orderTest :: (Handles Bool m, MonadEffectState Int m, MonadIO m) => m ()
+orderTest :: (Handles Bool m, MonadEffect (State Int) m, MonadIO m) => m ()
 orderTest = do
     setState (1 :: Int)
     _ :: Either Bool () <- handleToEitherRecursive $ do
@@ -50,7 +50,7 @@ orderTest = do
 inc :: Int -> Int
 inc !x = x + 1
 
-task :: (MonadEffectState Int m) => m Int
+task :: (MonadEffect (State Int) m) => m Int
 task = do
     replicateM_ 10000000 (modifyState inc)
     st <- getState
