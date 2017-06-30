@@ -1,5 +1,33 @@
 {-# LANGUAGE RankNTypes, TypeFamilies, FlexibleContexts, ScopedTypeVariables, MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances, DataKinds, GADTs #-}
+-- | A neat effect that you can use to get early returns in your functions. Here's how to use it.
+--
+--   Before:
+--
+-- @
+--   f = do
+--       m1 <- maybeFunc1
+--       case m1 of
+--           Nothing -> return "1 nothing"
+--           Just x -> do
+--               m2 <- maybeFunc2
+--               case m2 of
+--                   Nothing -> return "2 nothing"
+--                   Just y -> return (x <> y)
+-- @
+--
+--   After:
+--
+-- @
+--   f = handleEarly $ do
+--       m1 <- maybeFunc1
+--       x <- ifNothingEarlyReturn "1 nothing" m1
+--       m2 <- maybeFunc2
+--       y <- ifNothingEarlyReturn "2 nothing" m2
+--       return (x <> y)
+-- @
+--
+--   You can use the 'earlyReturn' function directily, or one of the helpers for common use cases.
 module Control.Effects.Early
     ( module Control.Effects, Early
     , earlyReturn, handleEarly, onlyDo, ifNothingEarlyReturn, ifNothingDo
