@@ -45,8 +45,9 @@ instance Monad m => MonadEffect (Signal a b) (MaybeT m) where
 instance TypeError (UnhandledError a b)
       => MonadEffect (Signal a b) IO where
     effect = undefined
-instance (Monad m, b ~ c) => MonadEffect (Signal a c) (EffectHandler (Signal a b) m) where
-    effect = effect @(Signal a b)
+instance {-# OVERLAPPING #-} (Monad m, b ~ c) =>
+    MonadEffect (Signal a c) (EffectHandler (Signal a b) m) where
+    effect msg = EffectHandler (ReaderT (($ msg) . getEffectWithKind))
 
 signal :: MonadEffect (Signal a b) m => a -> m b
 signal a = getSignalRes <$> effect (SignalMsg a)
