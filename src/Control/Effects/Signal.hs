@@ -93,11 +93,11 @@ handleSignal f = fmap collapseEither
 
 -- | This handler can only behave like a regular exception handler. If used along with 'throwSignal'
 --   this module behaves like regular checked exceptions.
-handleException :: Monad m => (a -> m c) -> ExceptT a m c -> m c
+handleException :: forall a c m. Monad m => (a -> m c) -> ExceptT a m c -> m c
 handleException f = either f return <=< runExceptT
 
 -- | See documentation for 'handleException'. This handler gives you an 'Either'.
-handleToEither :: ExceptT e m a -> m (Either e a)
+handleToEither :: forall e a m. ExceptT e m a -> m (Either e a)
 handleToEither = runExceptT
 
 -- | Discard all the 'Throws' and 'Signal' constraints. If any exception was thrown
