@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeFamilies, UndecidableInstances, ScopedTypeVariables, FlexibleInstances #-}
-{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE ExistentialQuantification, DefaultSignatures #-}
 {-# OPTIONS_GHC -Wno-warnings-deprecations #-}
 module Control.Monad.Runnable where
 
@@ -37,6 +37,12 @@ class Monad m => Runnable m where
     --   'runTransformer' function.
     runMonad :: MonadicState m -> m a -> IO (MonadicResult m a)
 
+    default runMonad :: PureRunnable m => MonadicState m -> m a -> IO (MonadicResult m a)
+    runMonad s m = return (runPureMonad s m)
+
+class Runnable m => PureRunnable m where
+    runPureMonad :: MonadicState m -> m a -> MonadicResult m a
+
 -- | A class of transformers that can run their effects in the underlying monad.
 --
 --   The following laws need to hold.
@@ -70,7 +76,9 @@ instance Runnable Identity where
     type MonadicResult Identity a = a
     currentMonadicState = return ()
     restoreMonadicState = return
-    runMonad _ (Identity a) = return a
+    
+instance PureRunnable Identity where
+    runPureMonad _ (Identity a) = a
 
 instance Runnable IO where
     type MonadicState IO = ()
@@ -85,6 +93,9 @@ instance (Runnable m, RunnableTrans t, Monad (t m)) => Runnable (t m) where
     currentMonadicState = (,) <$> currentTransState <*> lift currentMonadicState
     restoreMonadicState s = lift (restoreMonadicState s) >>= restoreTransState
     runMonad (s, s') t = runMonad s' (runTransformer t s)
+
+instance (PureRunnable m, RunnableTrans t, Monad (t m)) => PureRunnable (t m) where
+    runPureMonad (s, s') t = runPureMonad s' (runTransformer t s)
 
 instance RunnableTrans (SS.StateT s) where
     type TransformerState (SS.StateT s) m = s
