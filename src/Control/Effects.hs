@@ -1,65 +1,67 @@
-{-# LANGUAGE TypeFamilies, MultiParamTypeClasses, FlexibleInstances, DeriveFunctor
-           , GeneralizedNewtypeDeriving, UndecidableInstances, StandaloneDeriving
-           , IncoherentInstances #-}
-{-# LANGUAGE DataKinds, PolyKinds, TypeInType, Rank2Types, TypeOperators, ConstraintKinds #-}
+{-# LANGUAGE TypeFamilies, AllowAmbiguousTypes, TypeApplications, RankNTypes #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleContexts, ScopedTypeVariables, InstanceSigs, UndecidableInstances #-}
+{-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE StandaloneDeriving, DataKinds #-}
+{-# LANGUAGE TypeOperators #-}
 module Control.Effects (module Control.Effects) where
 
-import Import
+import Import hiding (liftThrough)
 import Control.Monad.Runnable
-import Data.Kind
+import Control.Effects.Generic
 
-data MsgOrRes = Msg | Res
-data family Effect (effKind :: Type) :: effKind -> MsgOrRes -> Type
+class Effect e where
+    data EffMethods e (m :: * -> *) :: *
+    liftThrough ::
+        forall t m. (RunnableTrans t, Monad m, Monad (t m))
+        => (Proxy e, Proxy m, Proxy t) -> EffMethods e m -> EffMethods e (t m)
+    default liftThrough ::
+        forall t m. (RunnableTrans t, Monad m, Monad (t m), SimpleMethods (EffMethods e) m t)
+        => (Proxy e, Proxy m, Proxy t) -> EffMethods e m -> EffMethods e (t m)
+    liftThrough = genericLiftThrough
+    
+    mergeContext :: Monad m => m (EffMethods e m) -> EffMethods e m
+    default mergeContext :: MonadicMethods (EffMethods e) m => m (EffMethods e m) -> EffMethods e m
+    mergeContext = genericMergeContext
 
-class Monad m => MonadEffect effKind m where
-    -- | Use the effect described by 'method'.
-    effect :: Effect effKind method 'Msg -> m (Effect effKind method 'Res)
+class (Effect e, Monad m) => MonadEffect e m where
+    effect :: EffMethods e m
 
-newtype EffectWithKind effKind m = EffectWithKind
-    { getEffectWithKind :: forall method. Effect effKind method 'Msg -> m (Effect effKind method 'Res) }
+instance {-# OVERLAPPABLE #-}
+    (MonadEffect e m, Monad (t m), RunnableTrans t)
+    => MonadEffect e (t m) where
+    effect = liftThrough (Proxy @e, Proxy @m, Proxy @t) effect
 
--- | The 'EffectHandler' is really just a 'ReaderT' carrying around the function that knows how to
---   handle the effect.
-newtype EffectHandler effKind m a = EffectHandler
-    { unpackEffectHandler :: ReaderT (EffectWithKind effKind m) m a }
-    deriving ( Functor, Applicative, Monad, Alternative, MonadState s, MonadIO, MonadCatch
-             , MonadThrow, MonadRandom )
+newtype RuntimeImplementation e m a = RuntimeImplementation { getRuntimeImplementation :: ReaderT (EffMethods e m) m a }
+    deriving 
+        (Functor, Applicative, Monad, MonadPlus, Alternative, MonadState s, MonadIO, MonadCatch
+        , MonadThrow, MonadRandom )
 
-instance MonadTrans (EffectHandler effKind) where
-    lift = EffectHandler . lift
+instance MonadTrans (RuntimeImplementation e) where
+    lift = RuntimeImplementation . lift
 
-instance RunnableTrans (EffectHandler effKind) where
-    type TransformerState (EffectHandler effKind) m = EffectWithKind effKind m
-    type TransformerResult (EffectHandler effKind) m a = a
-    currentTransState = EffectHandler ask
+instance MonadReader r m => MonadReader r (RuntimeImplementation e m) where
+    ask = RuntimeImplementation (lift ask)
+    local f (RuntimeImplementation rdr) = RuntimeImplementation (ReaderT (local f . runReaderT rdr))
+
+deriving instance MonadBase b m => MonadBase b (RuntimeImplementation e m)
+instance MonadBaseControl b m => MonadBaseControl b (RuntimeImplementation e m) where
+    type StM (RuntimeImplementation e m) a = StM (ReaderT (EffMethods e m) m) a
+    liftBaseWith f = RuntimeImplementation $ liftBaseWith $ \q -> f (q . getRuntimeImplementation)
+    restoreM = RuntimeImplementation . restoreM
+
+instance RunnableTrans (RuntimeImplementation e) where
+    type TransformerResult (RuntimeImplementation e) m a = a
+    type TransformerState (RuntimeImplementation e) m = EffMethods e m
+    currentTransState = RuntimeImplementation ask
     restoreTransState = return
-    runTransformer m = runReaderT (unpackEffectHandler m)
+    runTransformer (RuntimeImplementation m) = runReaderT m
 
-instance MonadReader s m => MonadReader s (EffectHandler effKind m) where
-    ask = EffectHandler (lift ask)
-    local f (EffectHandler rdr) = EffectHandler (ReaderT $ local f . runReaderT rdr)
+instance (Effect e, Monad m) => MonadEffect e (RuntimeImplementation e m) where
+    effect = mergeContext $ RuntimeImplementation (liftThrough (Proxy, Proxy, Proxy) <$> ask)
 
-deriving instance MonadBase b m => MonadBase b (EffectHandler effKind m)
-
-instance MonadBaseControl b m => MonadBaseControl b (EffectHandler effKind m) where
-    type StM (EffectHandler effKind m) a = StM (ReaderT (EffectWithKind effKind m) m) a
-    liftBaseWith f = EffectHandler $ liftBaseWith $ \q -> f (q . unpackEffectHandler)
-    restoreM = EffectHandler . restoreM
-
-instance {-# OVERLAPPABLE #-} (MonadEffect method m, MonadTrans t, Monad (t m))
-         => MonadEffect method (t m) where
-    {-# INLINE effect #-}
-    effect msg = lift (effect msg)
-
-instance Monad m => MonadEffect effKind (EffectHandler effKind m) where
-    {-# INLINE effect #-}
-    effect msg = EffectHandler (ReaderT (($ msg) . getEffectWithKind))
-
--- | Handle the effect described by 'effKind'.
-handleEffect ::
-    (forall method. Effect effKind method 'Msg -> m (Effect effKind method 'Res))
-    -> EffectHandler effKind m a -> m a
-handleEffect f eh = runReaderT (unpackEffectHandler eh) (EffectWithKind f)
+implement :: forall e m a. EffMethods e m -> RuntimeImplementation e m a -> m a
+implement em (RuntimeImplementation r) = runReaderT r em
 
 type family MonadEffects effs m :: Constraint where
     MonadEffects '[] m = ()

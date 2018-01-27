@@ -1,6 +1,9 @@
-{-# LANGUAGE TypeFamilies, ScopedTypeVariables, FlexibleContexts, Rank2Types, ConstraintKinds #-}
+{-# LANGUAGE TypeFamilies, ScopedTypeVariables, FlexibleContexts, Rank2Types #-}
 {-# LANGUAGE MultiParamTypeClasses, GADTs #-}
-{-# LANGUAGE DataKinds, TypeInType #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 -- | The 'MonadState' you know and love with some differences. First, there's no functional
 --   dependency limiting your stack to a single state type. This means less type inference so
 --   it might not be enough to just write 'getState'. Write 'getState @MyStateType' instead using
@@ -8,59 +11,63 @@
 --
 --   Second, the functions have less generic names and are called 'getState' and 'setState'.
 --
---   Third, since it's a part of this effect framework, you get a 'handleState' function with
+--   Third, since it's a part of this effect framework, you get an 'implement' function with
 --   which you can provide a different state implementation _at runtime_.
 module Control.Effects.State (module Control.Effects.State, module Control.Effects) where
 
 import Import hiding (State)
 import Data.IORef
+import GHC.Generics
 
 import Control.Effects
 
-data State s = Get | Set
-data instance Effect (State s) method mr where
-    GetStateMsg :: Effect (State s) 'Get 'Msg
-    GetStateRes :: { getGetStateRes :: s } -> Effect (State s) 'Get 'Res
-    SetStateMsg :: s -> Effect (State s) 'Set 'Msg
-    SetStateRes :: Effect (State s) 'Set 'Res
+data State s
 
-instance Monad m => MonadEffect (State s) (StateT s m) where
-    effect GetStateMsg = GetStateRes <$> get
-    effect (SetStateMsg s) = SetStateRes <$ put s
-    {-# INLINE effect #-}
+instance Effect (State s) where
+    data EffMethods (State s) m = StateMethods
+        { _getState :: m s
+        , _setState :: s -> m () }
+        deriving (Generic)
 
+-- | Get current value of the state with the type 's'.
+-- You can use type applications to tell the type checker which type of state you want.
+-- @getState \@Int@
 getState :: forall s m. MonadEffect (State s) m => m s
-getState = getGetStateRes <$> effect GetStateMsg
-{-# INLINE getState #-}
-
+-- | Set a new value for the state of type 's'
+-- You can use type applications to tell the type checker which type of state you're setting.
+-- @setState \@Int 5@
 setState :: forall s m. MonadEffect (State s) m => s -> m ()
-setState s = void $ effect (SetStateMsg s)
-{-# INLINE setState #-}
+StateMethods getState setState = effect
 
+-- | Transform the state of type 's' using the given function.
+-- You can use type applications to tell the type checker which type of state you're modifying.
+-- @modifyState \@Int (+ 1)@
 modifyState :: forall s m. MonadEffect (State s) m => (s -> s) -> m ()
 modifyState f = do
-    s <- getState
-    let s' = f s in s' `seq` setState s'
-{-# INLINE modifyState #-}
+    s <- getState @s
+    let s' = f s
+    s' `seq` setState s'
 
--- | Handle the 'MonadEffect (State s)' constraint by providing custom handling functions.
-handleState :: forall m s a. Monad m => m s -> (s -> m ())
-            -> EffectHandler (State s) m a -> m a
-handleState getter setter =
-    handleEffect handler
-    where handler :: forall method. Effect (State s) method 'Msg -> m (Effect (State s) method 'Res)
-          handler GetStateMsg = GetStateRes <$> getter
-          handler (SetStateMsg s) = SetStateRes <$ setter s
-{-# INLINE handleState #-}
+instance Monad m => MonadEffect (State s) (StateT s m) where
+    effect = StateMethods get put
 
--- | Handle the state requirement using an 'IORef'.
-handleStateIO :: MonadIO m => s -> EffectHandler (State s) m a -> m a
-handleStateIO initial m = do
+-- | Implement the state effect via the StateT transformer. If you have a function with a type like
+-- @f :: MonadEffect (State Int) m => m ()@ you can use 'implementStateViaStateT' to satisfy the 
+-- 'MonadEffect' constraint.
+--
+-- @implementStateViaStateT \@Int 0 f :: Monad m => m ()@
+implementStateViaStateT :: forall s m a. Monad m => s -> StateT s m a -> m a
+implementStateViaStateT = flip evalStateT 
+
+-- | Handle the state requirement using an 'IORef'. If you have a function with a type like
+-- @f :: MonadEffect (State Int) m => m ()@ you can use 'implementStateViaIORef' to replace the 
+-- 'MonadEffect' constraint with 'MonadIO'. This is convenient if you already have a 'MonadIO' 
+-- constraint and you don't want to use the 'StateT' transformer for some reason.
+--
+-- @implementStateViaIORef \@Int 0 f :: MonadIO m => m ()@
+implementStateViaIORef :: forall s m a. MonadIO m => s -> RuntimeImplementation (State s) m a -> m a
+implementStateViaIORef initial m = do
     ref <- liftIO (newIORef initial)
-    m & handleState (liftIO (readIORef  ref)) (liftIO . writeIORef ref)
-{-# INLINE handleStateIO #-}
+    m & implement (StateMethods (liftIO (readIORef  ref)) (liftIO . writeIORef ref))
+{-# INLINE implementStateViaIORef #-}
 
--- | Handle the state requirement using the standard 'StateT' transformer.
-handleStateT :: Monad m => s -> StateT s m a -> m a
-handleStateT = flip evalStateT
-{-# INLINE handleStateT #-}
