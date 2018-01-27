@@ -9,6 +9,7 @@ module Control.Effects (module Control.Effects) where
 import Import hiding (liftThrough)
 import Control.Monad.Runnable
 import Control.Effects.Generic
+import GHC.Generics
 
 class Effect e where
     data EffMethods e (m :: * -> *) :: *
@@ -16,12 +17,16 @@ class Effect e where
         forall t m. (RunnableTrans t, Monad m, Monad (t m))
         => (Proxy e, Proxy m, Proxy t) -> EffMethods e m -> EffMethods e (t m)
     default liftThrough ::
-        forall t m. (RunnableTrans t, Monad m, Monad (t m), SimpleMethods (EffMethods e) m t)
+        forall t m. 
+        ( Generic (EffMethods e m), RunnableTrans t, Monad m, Monad (t m)
+        , SimpleMethods (EffMethods e) m t )
         => (Proxy e, Proxy m, Proxy t) -> EffMethods e m -> EffMethods e (t m)
     liftThrough = genericLiftThrough
     
     mergeContext :: Monad m => m (EffMethods e m) -> EffMethods e m
-    default mergeContext :: MonadicMethods (EffMethods e) m => m (EffMethods e m) -> EffMethods e m
+    default mergeContext :: 
+        (Generic (EffMethods e m), MonadicMethods (EffMethods e) m) 
+        => m (EffMethods e m) -> EffMethods e m
     mergeContext = genericMergeContext
 
 class (Effect e, Monad m) => MonadEffect e m where

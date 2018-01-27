@@ -1,5 +1,6 @@
 {-# LANGUAGE RankNTypes, TypeFamilies, FlexibleContexts, ScopedTypeVariables, MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances, DataKinds, GADTs #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 -- | A neat effect that you can use to get early returns in your functions. Here's how to use it.
 --
 --   Before:
@@ -27,7 +28,7 @@
 --       return (x <> y)
 -- @
 --
---   You can use the 'earlyReturn' function directily, or one of the helpers for common use cases.
+--   You can use the 'earlyReturn' function directly, or one of the helpers for common use cases.
 module Control.Effects.Early
     ( module Control.Effects, Early
     , earlyReturn, handleEarly, onlyDo, ifNothingEarlyReturn, ifNothingDo
@@ -38,18 +39,22 @@ import Import
 import Control.Effects
 
 newtype EarlyValue a = EarlyValue { getEarlyValue :: a }
-data Early a = Early
-data instance Effect (Early a) method mr where
-    EarlyMsg :: a -> Effect (Early a) 'Early 'Msg
-    EarlyRes :: { getEarlyRes :: Void } -> Effect (Early a) 'Early 'Res
-
+data Early a
+instance Effect (Early a) where
+    data EffMethods (Early a) m = EarlyMethods
+        { _earlyReturn :: forall b. a -> m b }
+    liftThrough _ (EarlyMethods f) = EarlyMethods (lift . f)
+    mergeContext m = EarlyMethods (\a -> do
+        f <- _earlyReturn <$> m
+        f a)
+    
 instance (Monad m, a ~ b) => MonadEffect (Early a) (ExceptT (EarlyValue b) m) where
-    effect (EarlyMsg a) = EarlyRes <$> throwE (EarlyValue a)
+    effect = EarlyMethods (\a -> throwE (EarlyValue a))
 
 -- | Allows you to return early from a function. Make sure you 'handleEarly' to get the actual
 --   result out.
 earlyReturn :: forall a b m. MonadEffect (Early a) m => a -> m b
-earlyReturn a = fmap (getEarlyValue . absurd . getEarlyRes) . effect $ EarlyMsg a
+EarlyMethods earlyReturn = effect
 
 -- | Get the result from a computation. Either the early returned one, or the regular result.
 handleEarly :: Monad m => ExceptT (EarlyValue a) m a -> m a
