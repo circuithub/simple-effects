@@ -13,12 +13,14 @@ import GHC.Generics
 
 class Effect e where
     data EffMethods e (m :: * -> *) :: *
+    type CanLift e (t :: (* -> *) -> * -> *) :: Constraint
+    type CanLift e (t :: (* -> *) -> * -> *) = MonadTrans t
     liftThrough ::
-        forall t m. (RunnableTrans t, Monad m, Monad (t m))
+        forall t m. (CanLift e t, Monad m, Monad (t m))
         => (Proxy e, Proxy m, Proxy t) -> EffMethods e m -> EffMethods e (t m)
     default liftThrough ::
         forall t m. 
-        ( Generic (EffMethods e m), RunnableTrans t, Monad m, Monad (t m)
+        ( Generic (EffMethods e m), MonadTrans t, Monad m, Monad (t m)
         , SimpleMethods (EffMethods e) m t )
         => (Proxy e, Proxy m, Proxy t) -> EffMethods e m -> EffMethods e (t m)
     liftThrough = genericLiftThrough
@@ -33,7 +35,7 @@ class (Effect e, Monad m) => MonadEffect e m where
     effect :: EffMethods e m
 
 instance {-# OVERLAPPABLE #-}
-    (MonadEffect e m, Monad (t m), RunnableTrans t)
+    (MonadEffect e m, Monad (t m), CanLift e t)
     => MonadEffect e (t m) where
     effect = liftThrough (Proxy @e, Proxy @m, Proxy @t) effect
 
@@ -62,7 +64,7 @@ instance RunnableTrans (RuntimeImplementation e) where
     restoreTransState = return
     runTransformer (RuntimeImplementation m) = runReaderT m
 
-instance (Effect e, Monad m) => MonadEffect e (RuntimeImplementation e m) where
+instance (Effect e, Monad m, CanLift e (RuntimeImplementation e)) => MonadEffect e (RuntimeImplementation e m) where
     effect = mergeContext $ RuntimeImplementation (liftThrough (Proxy, Proxy, Proxy) <$> ask)
 
 implement :: forall e m a. EffMethods e m -> RuntimeImplementation e m a -> m a

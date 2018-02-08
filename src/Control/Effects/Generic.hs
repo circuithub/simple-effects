@@ -77,7 +77,7 @@ instance {-# OVERLAPPABLE #-}
     IndependentOfM (a :: k) m
 
 genericLiftThrough ::
-    forall t e em m. (RunnableTrans t, Monad m, Monad (t m), SimpleMethods (em e) m t)
+    forall t e em m. (MonadTrans t, Monad m, Monad (t m), SimpleMethods (em e) m t)
     => (Proxy e, Proxy m, Proxy t) -> em e m -> em e (t m)
 genericLiftThrough _ = liftSimple
 {-# INLINE genericLiftThrough #-}
