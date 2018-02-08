@@ -30,5 +30,5 @@ readEnv = _readEnv effect
 -- | Use the given action in the underlying monad to provide environment
 --   values. You can think of @implementReadEnv x m@ as replacing all 'readEnv' calls
 --   in 'm' with 'x'.
-implementReadEnv :: Functor m => m e -> RuntimeImplementation (ReadEnv e) m a -> m a
+implementReadEnv :: Functor m => m e -> RuntimeImplemented (ReadEnv e) m a -> m a
 implementReadEnv m = implement (ReadEnvMethods m)

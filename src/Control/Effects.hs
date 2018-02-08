@@ -39,36 +39,38 @@ instance {-# OVERLAPPABLE #-}
     => MonadEffect e (t m) where
     effect = liftThrough (Proxy @e, Proxy @m, Proxy @t) effect
 
-newtype RuntimeImplementation e m a = RuntimeImplementation { getRuntimeImplementation :: ReaderT (EffMethods e m) m a }
+newtype RuntimeImplemented e m a = RuntimeImplemented 
+    { getRuntimeImplemented :: ReaderT (EffMethods e m) m a }
     deriving 
         (Functor, Applicative, Monad, MonadPlus, Alternative, MonadState s, MonadIO, MonadCatch
         , MonadThrow, MonadRandom )
 
-instance MonadTrans (RuntimeImplementation e) where
-    lift = RuntimeImplementation . lift
+instance MonadTrans (RuntimeImplemented e) where
+    lift = RuntimeImplemented . lift
 
-instance MonadReader r m => MonadReader r (RuntimeImplementation e m) where
-    ask = RuntimeImplementation (lift ask)
-    local f (RuntimeImplementation rdr) = RuntimeImplementation (ReaderT (local f . runReaderT rdr))
+instance MonadReader r m => MonadReader r (RuntimeImplemented e m) where
+    ask = RuntimeImplemented (lift ask)
+    local f (RuntimeImplemented rdr) = RuntimeImplemented (ReaderT (local f . runReaderT rdr))
 
-deriving instance MonadBase b m => MonadBase b (RuntimeImplementation e m)
-instance MonadBaseControl b m => MonadBaseControl b (RuntimeImplementation e m) where
-    type StM (RuntimeImplementation e m) a = StM (ReaderT (EffMethods e m) m) a
-    liftBaseWith f = RuntimeImplementation $ liftBaseWith $ \q -> f (q . getRuntimeImplementation)
-    restoreM = RuntimeImplementation . restoreM
+deriving instance MonadBase b m => MonadBase b (RuntimeImplemented e m)
+instance MonadBaseControl b m => MonadBaseControl b (RuntimeImplemented e m) where
+    type StM (RuntimeImplemented e m) a = StM (ReaderT (EffMethods e m) m) a
+    liftBaseWith f = RuntimeImplemented $ liftBaseWith $ \q -> f (q . getRuntimeImplemented)
+    restoreM = RuntimeImplemented . restoreM
 
-instance RunnableTrans (RuntimeImplementation e) where
-    type TransformerResult (RuntimeImplementation e) m a = a
-    type TransformerState (RuntimeImplementation e) m = EffMethods e m
-    currentTransState = RuntimeImplementation ask
+instance RunnableTrans (RuntimeImplemented e) where
+    type TransformerResult (RuntimeImplemented e) m a = a
+    type TransformerState (RuntimeImplemented e) m = EffMethods e m
+    currentTransState = RuntimeImplemented ask
     restoreTransState = return
-    runTransformer (RuntimeImplementation m) = runReaderT m
+    runTransformer (RuntimeImplemented m) = runReaderT m
 
-instance (Effect e, Monad m, CanLift e (RuntimeImplementation e)) => MonadEffect e (RuntimeImplementation e m) where
-    effect = mergeContext $ RuntimeImplementation (liftThrough (Proxy, Proxy, Proxy) <$> ask)
+instance (Effect e, Monad m, CanLift e (RuntimeImplemented e)) 
+    => MonadEffect e (RuntimeImplemented e m) where
+    effect = mergeContext $ RuntimeImplemented (liftThrough (Proxy, Proxy, Proxy) <$> ask)
 
-implement :: forall e m a. EffMethods e m -> RuntimeImplementation e m a -> m a
-implement em (RuntimeImplementation r) = runReaderT r em
+implement :: forall e m a. EffMethods e m -> RuntimeImplemented e m a -> m a
+implement em (RuntimeImplemented r) = runReaderT r em
 
 type family MonadEffects effs m :: Constraint where
     MonadEffects '[] m = ()

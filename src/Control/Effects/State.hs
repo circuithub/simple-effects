@@ -65,7 +65,7 @@ implementStateViaStateT = flip evalStateT
 -- constraint and you don't want to use the 'StateT' transformer for some reason.
 --
 -- @implementStateViaIORef \@Int 0 f :: MonadIO m => m ()@
-implementStateViaIORef :: forall s m a. MonadIO m => s -> RuntimeImplementation (State s) m a -> m a
+implementStateViaIORef :: forall s m a. MonadIO m => s -> RuntimeImplemented (State s) m a -> m a
 implementStateViaIORef initial m = do
     ref <- liftIO (newIORef initial)
     m & implement (StateMethods (liftIO (readIORef  ref)) (liftIO . writeIORef ref))
