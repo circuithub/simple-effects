@@ -49,7 +49,7 @@ instance Effect (Early a) where
         f a)
     
 instance (Monad m, a ~ b) => MonadEffect (Early a) (ExceptT (EarlyValue b) m) where
-    effect = EarlyMethods (\a -> throwE (EarlyValue a))
+    effect = EarlyMethods (throwE . EarlyValue)
 
 -- | Allows you to return early from a function. Make sure you 'handleEarly' to get the actual
 --   result out.
