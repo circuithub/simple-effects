@@ -1,4 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleContexts, ScopedTypeVariables, BangPatterns #-}
+{-# LANGUAGE DataKinds #-}
 module Main where
 
 import Control.Monad.IO.Class
@@ -13,7 +14,7 @@ import Data.Function
 ex1 = signal True
 
 -- Should compile
-ex2 :: Throws Bool m => m ()
+ex2 :: MonadEffect (Throw Bool) m => m ()
 ex2 = throwSignal False
 
 ex3 = do
@@ -37,7 +38,7 @@ testEarly2 :: Monad m => m Char
 testEarly2 = handleEarly $
     earlyReturn 'a'
 
-orderTest :: (Handles Bool m, MonadEffect (State Int) m, MonadIO m) => m ()
+orderTest :: (MonadEffects '[HandleException Bool, Throw Bool, State Int] m, MonadIO m) => m ()
 orderTest = do
     setState (1 :: Int)
     _ :: Either Bool () <- handleToEitherRecursive $ do
@@ -59,14 +60,14 @@ task = do
 main :: IO ()
 main = do
     orderTest & handleException (\(_ :: Bool) -> return ())
-              & handleStateT (0 :: Int)
-    orderTest & handleStateT (0 :: Int)
+              & implementStateViaStateT (0 :: Int)
+    orderTest & implementStateViaStateT (0 :: Int)
               & handleException (\(_ :: Bool) -> return ())
     putStrLn "Starting sequential test"
-    replicateM_ 8 (handleStateT (0 :: Int) task >>= print)
+    replicateM_ 8 (implementStateViaStateT (0 :: Int) task >>= print)
     putStrLn "Sequential test done"
     putStrLn "Starting parallel test"
-    handleStateT (0 :: Int) $ do
+    implementStateViaStateT (0 :: Int) $ do
         res <- parallelWithSequence (replicate 8 task)
         mapM_ (liftIO . print) res
     putStrLn "Parallel test done"
