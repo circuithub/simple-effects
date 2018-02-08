@@ -6,7 +6,6 @@ module Control.Effects.Generic where
 
 import qualified GHC.Generics as Gen
 import GHC.Generics
-import Control.Monad.Runnable
 import Control.Monad.Trans
 import Data.Proxy
 import GHC.TypeLits
