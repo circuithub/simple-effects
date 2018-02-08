@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables, TypeFamilies, FlexibleContexts, MultiParamTypeClasses #-}
-{-# LANGUAGE DataKinds, GADTs #-}
+{-# LANGUAGE DataKinds, GADTs, RankNTypes, NoMonomorphismRestriction #-}
 -- | Add non-determinism to your monad. Uses the 'ListT' transformer under the hood.
 module Control.Effects.List
     ( module Control.Effects.List
@@ -11,22 +11,26 @@ import Import
 import ListT hiding (take)
 
 import Control.Effects
-import Data.Kind
 
-newtype NonDeterministic = Choose Type
-data instance Effect NonDeterministic method mr where
-    ChooseMsg :: { getChooseMsg :: [a] } -> Effect NonDeterministic ('Choose a) 'Msg
-    ChooseRes :: { getChooseRes :: a } -> Effect NonDeterministic ('Choose a) 'Res
+data NonDeterminism
+instance Effect NonDeterminism where
+    data EffMethods NonDeterminism m = NonDeterminismMethods
+        { _choose :: forall a. [a] -> m a }
+    liftThrough _ (NonDeterminismMethods c) = NonDeterminismMethods (lift . c)
+    mergeContext m = NonDeterminismMethods (\a -> do
+        lm <- m
+        _choose lm a)
 
-instance Monad m => MonadEffect NonDeterministic (ListT m) where
-    effect (ChooseMsg list) = ChooseRes <$> fromFoldable list
+-- | Get a value from the list. The choice of which value to take is non-deterministic
+--   in a sense that the rest of the computation will be ran once for each of them.
+choose :: forall a m. MonadEffect NonDeterminism m => [a] -> m a
+NonDeterminismMethods choose = effect
 
--- | Runs the rest of the computation for every value in the list
-choose :: MonadEffect NonDeterministic m => [a] -> m a
-choose = fmap getChooseRes . effect . ChooseMsg
+instance Monad m => MonadEffect NonDeterminism (ListT m) where
+    effect = NonDeterminismMethods fromFoldable
 
 -- | Signals that this branch of execution failed to produce a result.
-deadEnd :: MonadEffect NonDeterministic m => m a
+deadEnd :: MonadEffect NonDeterminism m => m a
 deadEnd = choose []
 
 -- | Execute all the effects and collect the result in a list.
