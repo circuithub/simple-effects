@@ -21,8 +21,14 @@ instance Effect (ReadEnv e) where
         { _readEnv :: m e }
         deriving (Generic)
 
+-- | Read a value of type 'e'. Use with the TypeApplications extension to
+--   help with type inference
+--   @readEnv \@Int@
 readEnv :: forall e m. MonadEffect (ReadEnv e) m => m e
 readEnv = _readEnv effect
 
+-- | Use the given action in the underlying monad to provide environment
+--   values. You can think of @implementReadEnv x m@ as replacing all 'readEnv' calls
+--   in 'm' with 'x'.
 implementReadEnv :: Functor m => m e -> RuntimeImplementation (ReadEnv e) m a -> m a
 implementReadEnv m = implement (ReadEnvMethods m)
