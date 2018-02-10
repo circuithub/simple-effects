@@ -6,6 +6,7 @@
     You'll need to enable some extensions to follow along: @TypeApplications@, @FlexibleContexts@,
     @OverloadedStrings@, @DataKinds@.
 
+    == State
     Let's say we're writing a function that asks the user to name a fruit and adds their answer to
     a list of already known fruits. Here's what we want to do (in pseudocode)
         
@@ -40,15 +41,16 @@ addFruit = do
     'setState' (fruit : knownFruits)
 @
 
-    Note: It's possible to have more than one state available to use. Since 'getState' and 'setState'
-    need to work with all of them you'll sometimes need to specify the type of state you want to get/set.
-    In the above case we didn't need to since the compiler can infer that our state is @['Text']@. 
-    It infers @fruit :: 'Text'@ from the signature of 'T.getLine' and it can infer the list part
-    since we're using the list cons operator.
+    [Note] 
+        It's possible to have more than one state available to use. Since 'getState' and 'setState'
+        need to work with all of them you'll sometimes need to specify the type of state you want to get/set.
+        In the above case we didn't need to since the compiler can infer that our state is @['Text']@. 
+        It infers @fruit :: 'Text'@ from the signature of 'T.getLine' and it can infer the list part
+        since we're using the list cons operator.
 
-    To help the type checker in cases where it can't infer the types, it's convenient to use the
-    @TypeApplications@ extension. With it, we can write @fruit <- 'getState' \@['Text']@ and 
-    @'setState' \@['Text'] (fruit : knownFruits)@ to be explicit about which state type we mean.
+        To help the type checker in cases where it can't infer the types, it's convenient to use the
+        @TypeApplications@ extension. With it, we can write @fruit <- 'getState' \@['Text']@ and 
+        @'setState' \@['Text'] (fruit : knownFruits)@ to be explicit about which state type we mean.
 
 
     So lets use our function to ask for three types of fruit. After than we want to print the list.
@@ -57,9 +59,9 @@ addFruit = do
 -- this doesn't work yet
 main :: 'IO' ()
 main = do
-    askFruit
-    askFruit
-    askFruit
+    addFruit
+    addFruit
+    addFruit
     fruits <- 'getState' \@['Text']
     'liftIO' ('print' fruits)
 @
@@ -111,6 +113,7 @@ main = do
     to some remote API, or read/write from a file, or use a shared variable and run multiple
     computations at the same time...
 
+    == Non-determinism
     Now lets add an additional effect into the mix. For example, we an use the 'NonDeterminism' effect.
 
 @
@@ -137,10 +140,11 @@ main =
     whole thing. This is what the 'evaluateAll' function does. It runs the computation for each
     non-deterministic possibility, meaning all the fruit will get printed.
 
-    By the way, instead of repeating 'MonadEffect' for each effect, you can use the 'MonadEffects'
+    [Note] Instead of repeating 'MonadEffect' for each effect, you can use the 'MonadEffects'
     type family and give it a list of effects instead. Like this 
     @('MonadIO' m, 'MonadEffects' \'['State' ['Text'], 'NonDeterminism'] m) => m ()@
 
+    == Order
     One thing to note is that the order in which you implement effects sometimes matters. 
     For exaxmple, handling state first and then non-determinism after will result in the state
     being forked on each non-deterministic branch. Doing it in the reverse order will make the
