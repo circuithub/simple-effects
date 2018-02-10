@@ -173,7 +173,7 @@ main = do
     that in the second case, after we handle non-determinism we can still get the state value because
     we have yet to handle that effect. But if state was forked on each choice there could be many
     possible state values after the whole computation finishes. Which one would 'getState' return?
-    It makes more sense that the state is shared in that case since it keeps things unambiguous.
+    The only way it makes sense is if the state is shared since it keeps things unambiguous.
 
     On the other hand maybe we do want to see all the possible end states. The following example
     demonstrates how the two orderings let us do those two things.
