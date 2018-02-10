@@ -22,6 +22,9 @@ library
                      , Control.Effects.Parallel
                      , Control.Effects.Generic
                      , Control.Monad.Runnable
+                     , Tutorial.T1_Introduction
+                     , Tutorial.T2_Details
+                     , Tutorial.T3_CustomEffects
   other-modules:       Import
                        Tutorial.Test
   hs-source-dirs:      src
