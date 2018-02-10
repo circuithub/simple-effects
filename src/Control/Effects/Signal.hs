@@ -53,7 +53,7 @@ instance TypeError (UnhandledError a b) => MonadEffect (Signal a b) IO where
     effect = undefined
 instance {-# INCOHERENT #-} (Monad m, b ~ c) =>
     MonadEffect (Signal a c) (RuntimeImplemented (Signal a b) m) where
-    effect = mergeContext $ RuntimeImplemented (liftThrough (Proxy, Proxy, Proxy) <$> ask)
+    effect = mergeContext $ RuntimeImplemented (liftThrough <$> ask)
 
 type Throw e = Signal e Void
 
@@ -123,9 +123,8 @@ instance Effect (HandleException e) where
     type CanLift (HandleException e) t = RunnableTrans t
     liftThrough ::
         forall t m. (CanLift (HandleException e) t, Monad m, Monad (t m))
-        => (Proxy (HandleException e), Proxy m, Proxy t) 
-        -> EffMethods (HandleException e) m -> EffMethods (HandleException e) (t m)
-    liftThrough _ (HandleExceptionMethods rec') = HandleExceptionMethods $ \f e -> do
+        => EffMethods (HandleException e) m -> EffMethods (HandleException e) (t m)
+    liftThrough (HandleExceptionMethods rec') = HandleExceptionMethods $ \f e -> do
         st <- currentTransState
         res <- lift (rec' (\ex -> runTransformer (f ex) st) (runTransformer e st))
         restoreTransState res

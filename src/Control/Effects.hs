@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, AllowAmbiguousTypes, TypeApplications, RankNTypes #-}
+{-# LANGUAGE TypeFamilies, RankNTypes #-}
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleContexts, ScopedTypeVariables, InstanceSigs, UndecidableInstances #-}
 {-# LANGUAGE DefaultSignatures #-}
@@ -14,15 +14,15 @@ import GHC.Generics
 class Effect e where
     data EffMethods e (m :: * -> *) :: *
     type CanLift e (t :: (* -> *) -> * -> *) :: Constraint
-    type CanLift e (t :: (* -> *) -> * -> *) = MonadTrans t
+    type CanLift e t = MonadTrans t
     liftThrough ::
         forall t m. (CanLift e t, Monad m, Monad (t m))
-        => (Proxy e, Proxy m, Proxy t) -> EffMethods e m -> EffMethods e (t m)
+        => EffMethods e m -> EffMethods e (t m)
     default liftThrough ::
         forall t m. 
         ( Generic (EffMethods e m), MonadTrans t, Monad m, Monad (t m)
         , SimpleMethods (EffMethods e) m t )
-        => (Proxy e, Proxy m, Proxy t) -> EffMethods e m -> EffMethods e (t m)
+        => EffMethods e m -> EffMethods e (t m)
     liftThrough = genericLiftThrough
     
     mergeContext :: Monad m => m (EffMethods e m) -> EffMethods e m
@@ -37,7 +37,7 @@ class (Effect e, Monad m) => MonadEffect e m where
 instance {-# OVERLAPPABLE #-}
     (MonadEffect e m, Monad (t m), CanLift e t)
     => MonadEffect e (t m) where
-    effect = liftThrough (Proxy @e, Proxy @m, Proxy @t) effect
+    effect = liftThrough effect
 
 newtype RuntimeImplemented e m a = RuntimeImplemented 
     { getRuntimeImplemented :: ReaderT (EffMethods e m) m a }
@@ -67,7 +67,7 @@ instance RunnableTrans (RuntimeImplemented e) where
 
 instance (Effect e, Monad m, CanLift e (RuntimeImplemented e)) 
     => MonadEffect e (RuntimeImplemented e m) where
-    effect = mergeContext $ RuntimeImplemented (liftThrough (Proxy, Proxy, Proxy) <$> ask)
+    effect = mergeContext $ RuntimeImplemented (liftThrough <$> ask)
 
 implement :: forall e m a. EffMethods e m -> RuntimeImplemented e m a -> m a
 implement em (RuntimeImplemented r) = runReaderT r em

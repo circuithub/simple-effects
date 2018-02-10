@@ -16,7 +16,7 @@ data NonDeterminism
 instance Effect NonDeterminism where
     data EffMethods NonDeterminism m = NonDeterminismMethods
         { _choose :: forall a. [a] -> m a }
-    liftThrough _ (NonDeterminismMethods c) = NonDeterminismMethods (lift . c)
+    liftThrough (NonDeterminismMethods c) = NonDeterminismMethods (lift . c)
     mergeContext m = NonDeterminismMethods (\a -> do
         lm <- m
         _choose lm a)

@@ -43,7 +43,7 @@ data Early a
 instance Effect (Early a) where
     data EffMethods (Early a) m = EarlyMethods
         { _earlyReturn :: forall b. a -> m b }
-    liftThrough _ (EarlyMethods f) = EarlyMethods (lift . f)
+    liftThrough (EarlyMethods f) = EarlyMethods (lift . f)
     mergeContext m = EarlyMethods (\a -> do
         f <- _earlyReturn <$> m
         f a)
