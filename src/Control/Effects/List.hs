@@ -60,3 +60,7 @@ evaluateNResults n = fmap fst . splitAt n
 -- | Executes only the effects needed to produce a single result.
 evaluateOneResult :: Monad m => ListT m a -> m (Maybe a)
 evaluateOneResult = head
+
+-- | Execute all the effects but discard their results.
+evaluateAll :: Monad m => ListT m a -> m ()
+evaluateAll = void . evaluateToList

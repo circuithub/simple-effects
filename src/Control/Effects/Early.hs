@@ -30,7 +30,7 @@
 --
 --   You can use the 'earlyReturn' function directly, or one of the helpers for common use cases.
 module Control.Effects.Early
-    ( module Control.Effects, Early
+    ( module Control.Effects, Early, EffMethods(..)
     , earlyReturn, handleEarly, onlyDo, ifNothingEarlyReturn, ifNothingDo
     , ifLeftEarlyReturn, ifLeftDo ) where
 

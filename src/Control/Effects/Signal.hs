@@ -12,7 +12,8 @@ module Control.Effects.Signal
     ( ResumeOrBreak(..), Signal, throwSignal, handleSignal
     , Throw, handleException, handleToEither, module Control.Effects
     , module Control.Monad.Trans.Except, MaybeT(..), discardAllExceptions, showAllExceptions
-    , HandleException, handleWithoutDiscarding, handleToEitherRecursive, SomeSignal, signal ) where
+    , HandleException, handleWithoutDiscarding, handleToEitherRecursive, SomeSignal, signal
+    , EffMethods(..) ) where
 
 import Import hiding (liftThrough)
 import Control.Monad.Trans.Except
