@@ -27,8 +27,8 @@
 @
 
     If you imagine we had 5 additional layers above the 'ReaderT', we'd need to call 'T.lift' 5 more
-    times. Instead we use typeclasses with polymorphic functions that work over any transformer 
-    stack. Their instances are aranged in a way that automatically calls 'T.lift' as many times as
+    times. Instead we use type classes with polymorphic functions that work over any transformer 
+    stack. Their instances are arranged in a way that automatically calls 'T.lift' as many times as
     needed. For example, the 'getState' function in @simple-effects@ has the type
     @'MonadEffect' ('State' s) m => m s@. Let's say our stack is 
     @'ReaderT' r1 ('ReaderT' r2 ('StateT' s 'IO'))@. The reason why we can use the 'getState'
@@ -72,7 +72,7 @@ instance 'MonadEffect' ('State' s) m => 'MonadEffect' ('State' s) ('ReaderT' r m
     If we had additional effect constraints on our initial computation, then the instance resolution
     would find the matching instances for the 'StateT' transformer that would push the constraint
     onto the underlying monad. This means that our final result wouldn't just have a 'Monad'
-    constriant, but also those other ones that remain to be handled.
+    constraint, but also those other ones that remain to be handled.
 
     What @simple-effects@ does is provide a structured way to define new effects so that they can
     automatically be lifted through monad stacks. Also, for the more complex effects where just 
@@ -93,7 +93,7 @@ class 'Effect' e where
     'mergeContext' :: 'Monad' m => m ('EffMethods' e m) -> 'EffMethods' e m
 @
 
-    The 'EffMethods' associated data type is where you specify the funcionality that your effect
+    The 'EffMethods' associated data type is where you specify the functionality that your effect
     provides. This will be a record of monadic functions. For example, there's how it's instantiated
     for the state effect:
 
@@ -146,7 +146,7 @@ f mamb a = do
 
     If these implementations seem pretty mechanical it's because they are. So mechanical, in fact,
     that in most of the cases you don't even need to write them. Just derive the 'Generic' class
-    for your effect and you get those defintions for free. Here's the actual instance 
+    for your effect and you get those definitions for free. Here's the actual instance 
     @'Effect' ('State' s)@:
 
 @
@@ -182,7 +182,7 @@ class ('Effect' e, 'Monad' m) => 'MonadEffect' e m where
     So it just says that monads that implement the effect @e@ need to provide a record of
     the effect's methods that work in that monad.
 
-    As discused in the transformers section, there's an
+    As discussed in the transformers section, there's an
     overlappable instance given for the 'MonadEffect' class. Here it is:
 
 @

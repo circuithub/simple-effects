@@ -146,7 +146,7 @@ main =
 
     == Order
     One thing to note is that the order in which you implement effects sometimes matters. 
-    For exaxmple, handling state first and then non-determinism after will result in the state
+    For example, handling state first and then non-determinism after will result in the state
     being forked on each non-deterministic branch. Doing it in the reverse order will make the
     state shared between branches meaning that changes in one branch will affect the state when the
     next branch is taken. Here's an example
