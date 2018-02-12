@@ -5,8 +5,24 @@
 
     You'll need to enable some extensions to follow along: @TypeApplications@, @FlexibleContexts@,
     @OverloadedStrings@, @DataKinds@.
+-}
+module Tutorial.T1_Introduction (
+    -- * State
+    -- $state  
 
-    == State
+    -- * Non-determinism
+    -- $nondeterminism
+
+    -- * Order
+    -- $order 
+    ) where
+
+import Data.Text as T
+import Data.Text.IO as T
+import Control.Monad.IO.Class
+import Control.Effects.State
+import Control.Effects.List
+{- $state
     Let's say we're writing a function that asks the user to name a fruit and adds their answer to
     a list of already known fruits. Here's what we want to do (in pseudocode)
         
@@ -90,8 +106,8 @@ main = 'implementStateViaStateT' \@['Text'] [] $ do
     Lets imagine that we have a database and two functions:
 
 @    
-getFruits :: 'MonadIO' m => Connection -> m [Text]
-setFruits :: 'MonadIO' m => Connection -> [Text] -> m ()
+getFruits :: 'MonadIO' m => Connection -> m ['Text']
+setFruits :: 'MonadIO' m => Connection -> ['Text'] -> m ()
 @
 
     These should get a list of fruits from the database, and store a new list back into it. We can
@@ -113,7 +129,9 @@ main = do
     to some remote API, or read/write from a file, or use a shared variable and run multiple
     computations at the same time...
 
-    == Non-determinism
+-}
+
+{- $nondeterminism
     Now lets add an additional effect into the mix. For example, we an use the 'NonDeterminism' effect.
 
 @
@@ -144,7 +162,9 @@ main =
     type family and give it a list of effects instead. Like this 
     @('MonadIO' m, 'MonadEffects' \'['State' ['Text'], 'NonDeterminism'] m) => m ()@
 
-    == Order
+-}
+
+{- $order
     One thing to note is that the order in which you implement effects sometimes matters. 
     For example, handling state first and then non-determinism after will result in the state
     being forked on each non-deterministic branch. Doing it in the reverse order will make the
@@ -212,11 +232,3 @@ main4 = do
     part of the tutorial: "Tutorial.T2_Details". We'll look at implementing custom effects in part 3,
     "Tutorial.T3_CustomEffects".
 -}
-
-module Tutorial.T1_Introduction where
-
-import Data.Text as T
-import Data.Text.IO as T
-import Control.Monad.IO.Class
-import Control.Effects.State
-import Control.Effects.List
