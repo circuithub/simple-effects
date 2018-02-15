@@ -1,12 +1,33 @@
 {-# OPTIONS_GHC -Wno-unused-imports #-}
-{-| In this part, we'll take a more detailed look at this library. You don't need to know these     
-    things to use the effects. For the most part, you can also implement your own without reading 
+{-| In this part, we'll take a more detailed look at this library. You don't need to know these
+    things to use the effects. For the most part, you can also implement your own without reading
     this part. To learn about that check out the next part: "Tutorial.T3_CustomEffects".
 
-    That being said, the details will help you understand potential compiler errors you might get. 
+    That being said, the details will help you understand potential compiler errors you might get.
     Also, implementing more complex effects does require a bit of an understanding of the internals.
+-}
 
-    == Transformers
+module Tutorial.T2_Details (
+    -- * Transformers
+    -- $transformers
+
+    -- * The 'Effect' class
+    -- $effect
+
+    -- * The 'MonadEffect' class
+    -- $monadeffect
+
+    -- * Runtime implementation
+    -- $runtime
+    ) where
+
+import Control.Effects
+import Control.Effects.State
+import Control.Monad.Trans.State as S hiding (State)
+import Control.Monad.Trans.Reader as R
+import Control.Monad.Trans as T (lift, MonadTrans)
+import GHC.Generics
+{- $transformers
     Monad transformers are types with the kind @(\* -> \*) -> \* -> \*@ that take a monad as a
     parameter and add some extra functionality on top of it, resulting in a new monad. This isn't a
     tutorial on them so we'll just briefly go through the basics.
@@ -27,10 +48,10 @@
 @
 
     If you imagine we had 5 additional layers above the 'ReaderT', we'd need to call 'T.lift' 5 more
-    times. Instead we use type classes with polymorphic functions that work over any transformer 
+    times. Instead we use type classes with polymorphic functions that work over any transformer
     stack. Their instances are arranged in a way that automatically calls 'T.lift' as many times as
     needed. For example, the 'getState' function in @simple-effects@ has the type
-    @'MonadEffect' ('State' s) m => m s@. Let's say our stack is 
+    @'MonadEffect' ('State' s) m => m s@. Let's say our stack is
     @'ReaderT' r1 ('ReaderT' r2 ('StateT' s 'IO'))@. The reason why we can use the 'getState'
     function is because there are two instances for @'MonadEffect' ('State' s)@.
 
@@ -59,15 +80,15 @@ instance 'MonadEffect' ('State' s) m => 'MonadEffect' ('State' s) ('ReaderT' r m
         with, for example, the 'StateT' instance for the 'State' effect)
 
     Now let's see how a function like 'implementStateViaStateT' works. It's type is
-    @'implementStateViaStateT' \@Int :: 'Monad' m => Int -> 'StateT' Int m a -> m a@. Say we also have a 
-    computation with the type @'MonadEffect' ('State' Int) n => n ()@ that we want to run. If we 
-    give that computation as the second parameter of the 'implementStateViaStateT' function then @n@ 
-    becomes @'StateT' Int m a@, but since there was also a constraint on the @n@ type, instance 
+    @'implementStateViaStateT' \@Int :: 'Monad' m => Int -> 'StateT' Int m a -> m a@. Say we also have a
+    computation with the type @'MonadEffect' ('State' Int) n => n ()@ that we want to run. If we
+    give that computation as the second parameter of the 'implementStateViaStateT' function then @n@
+    becomes @'StateT' Int m a@, but since there was also a constraint on the @n@ type, instance
     resolution must check if that type satisfies it. This then finds the
     @instance 'MonadEffect' ('State' s) ('StateT' s m)@ instance and everything works. Then finally
     the actual definition of 'implementStateViaStateT' kicks in and it runs the 'StateT' transformer,
     giving it an initial state value and resulting in a monadic action that's free of the state
-    constraint. 
+    constraint.
 
     If we had additional effect constraints on our initial computation, then the instance resolution
     would find the matching instances for the 'StateT' transformer that would push the constraint
@@ -75,11 +96,11 @@ instance 'MonadEffect' ('State' s) m => 'MonadEffect' ('State' s) ('ReaderT' r m
     constraint, but also those other ones that remain to be handled.
 
     What @simple-effects@ does is provide a structured way to define new effects so that they can
-    automatically be lifted through monad stacks. Also, for the more complex effects where just 
-    'lift' isn't enough, it enables the writer of the effect to specify how exactly to lift their 
+    automatically be lifted through monad stacks. Also, for the more complex effects where just
+    'lift' isn't enough, it enables the writer of the effect to specify how exactly to lift their
     effect. This is done through the 'Effect' class.
-
-    == The 'Effect' class
+-}
+{- $effect
     The core of every effect is it's 'Effect' instance. Here's how the class is defined:
 
 @
@@ -146,7 +167,7 @@ f mamb a = do
 
     If these implementations seem pretty mechanical it's because they are. So mechanical, in fact,
     that in most of the cases you don't even need to write them. Just derive the 'Generic' class
-    for your effect and you get those definitions for free. Here's the actual instance 
+    for your effect and you get those definitions for free. Here's the actual instance
     @'Effect' ('State' s)@:
 
 @
@@ -162,16 +183,17 @@ instance 'Effect' ('State' s) where
     are functions that take arguments that don't depend on the monad @m@ and also have a monadic
     result in that monad. For example, @'setState' :: s -> m ()@ is a method of a simple effect
     while @g :: m a -> m a@ isn't one because the first parameter depends on @m@.
-    
+
     One extra condition is that there can't be any universally quantified variables in the methods,
-    so for example if your effect has a method @h :: forall a. a -> m ()@, you can't derive 
-    'liftThrough' and 'mergeContext' for it automatically. This isn't because it's impossible 
+    so for example if your effect has a method @h :: forall a. a -> m ()@, you can't derive
+    'liftThrough' and 'mergeContext' for it automatically. This isn't because it's impossible
     (or even difficult), but because you can't derive 'Generic' for those types. In those cases
     you need to write the implementations yourself.
 
     Finally, we have the 'MonadEffect' class.
+-}
 
-    == The 'MonadEffect' class
+{- $monadeffect
     It's defined like this
 
 @
@@ -186,7 +208,7 @@ class ('Effect' e, 'Monad' m) => 'MonadEffect' e m where
     overlappable instance given for the 'MonadEffect' class. Here it is:
 
 @
-instance \{\-\# OVERLAPPABLE \#\-\} 
+instance \{\-\# OVERLAPPABLE \#\-\}
     ('MonadEffect' e m, 'Monad' (t m), 'CanLift' e t) => 'MonadEffect' e (t m) where
     'effect' = 'liftThrough' 'effect'
 @
@@ -205,26 +227,29 @@ instance 'Monad' m => 'MonadEffect' ('State' s) ('StateT' s m) where
 
     [Note]
         The 'S.get' and 'S.put' functions come from the "Control.Monad.Trans.State" module.
+-}
 
-    == Runtime implementation
-    'RuntimeImplemented' is a special transformer defined like this:
+{- $runtime
+    Defining effects in a structured way like this has an additional benefit. It lets us use
+    implementations that we construct at runtime! This is achieved through the 'RuntimeImplemented'
+    type. 'RuntimeImplemented' is a special transformer defined like this:
 
 @
-newtype 'RuntimeImplemented' e m a = 'RuntimeImplemented' 
+newtype 'RuntimeImplemented' e m a = 'RuntimeImplemented'
     { 'getRuntimeImplemented' :: 'ReaderT' ('EffMethods' e m) m a }
 @
 
-    It's a wrapper around a 'ReaderT' that carries around an @'EffMethods' e m@ record. 
+    It's a wrapper around a 'ReaderT' that carries around an @'EffMethods' e m@ record.
     @'RuntimeImplemented' e@ has a @'MonadEffect' e@ instance defined like this
 
 @
-instance ('Effect' e, 'Monad' m, 'CanLift' e ('RuntimeImplemented' e)) 
+instance ('Effect' e, 'Monad' m, 'CanLift' e ('RuntimeImplemented' e))
     => 'MonadEffect' e ('RuntimeImplemented' e m) where
     'effect' = 'mergeContext' $ 'RuntimeImplemented' ('liftThrough' <$> 'ask')
 @
 
     Essentially, 'ask' gives us the record, but it's inside of a monadic context so we need
-    'mergeContext' to get it out. This lets us implement any effect /at runtime/ using the 
+    'mergeContext' to get it out. This lets us implement any effect /at runtime/ using the
     'implement' function:
 
 @
@@ -239,13 +264,25 @@ instance ('Effect' e, 'Monad' m, 'CanLift' e ('RuntimeImplemented' e))
     effect's methods. All that's left is to actually run the 'ReaderT' by giving it the record which
     we're free to construct any way we want.
 
+    [Note]
+        One more thing. You might notice that the definition of the state effect doesn't mention the
+        'getState' and 'setState' functions. The methods in the record are called '_getState' and
+        '_setState', with an underscore. If you think about it you'll see that to actually use one
+        of them, we first need to get them out of the record. Since we can access the record of
+        methods for the current monad with the 'effect' function, getting the current state would
+        look like @'_getState' 'effect'@ so to reduce duplication it's convenient to define helpers
+        like @'getState' = '_getState' 'effect'@ and @'setState' = '_setState' effect@. Even simpler,
+        though arguably more magical, is the following top level definition
+
+        @
+        'StateMethods' 'getState' 'setState' = 'effect'
+        @
+
+        When we write that at the top level, we bind the first field in the 'effect' record to the
+        'getState' name and the second field to the 'setState' name. It's pretty weird because we're
+        not in any specific monad, yet we're still somehow unpacking the record. Still, 'getState',
+        for example, happily accepts the @'MonadEffect' ('State' s) m => m s@ type signature and
+        it just works.
+
     That's pretty much it. In the next part we'll take a look at implementing our own effects.
 -}
-module Tutorial.T2_Details where
-
-import Control.Effects
-import Control.Effects.State
-import Control.Monad.Trans.State as S hiding (State)
-import Control.Monad.Trans.Reader as R
-import Control.Monad.Trans as T (lift, MonadTrans)
-import GHC.Generics
