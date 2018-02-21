@@ -48,7 +48,7 @@ class Runnable m => PureRunnable m where
 --   The following laws need to hold.
 --
 -- @
---   \t -> do st <- 'currentTransState'
+--   \\t -> do st <- 'currentTransState'
 --            res <- 'lift' ('runTransformer' t st)
 --            'restoreTransState' res
 --   == 'id'
@@ -56,7 +56,7 @@ class Runnable m => PureRunnable m where
 --
 -- @
 --   f :: (forall a. m a -> m a)
---   \m s -> runTransformer (lift (f m)) s == \m s -> f (runTransformer (lift m) s)
+--   \\m s -> runTransformer (lift (f m)) s == \\m s -> f (runTransformer (lift m) s)
 -- @
 class MonadTrans t => RunnableTrans t where
     -- | The type of value that needs to be provided to run this transformer.
@@ -65,7 +65,7 @@ class MonadTrans t => RunnableTrans t where
     type TransformerResult t (m :: * -> *) a :: *
     -- | Get the current state value.
     currentTransState :: Monad m => t m (TransformerState t m)
-    -- | If given a result, reconstruct the compitation.
+    -- | If given a result, reconstruct the computation.
     restoreTransState :: Monad m => TransformerResult t m a -> t m a
     -- | Given the required state value and a computation, run the effects of the transformer
     --   in the underlying monad.
@@ -76,7 +76,7 @@ instance Runnable Identity where
     type MonadicResult Identity a = a
     currentMonadicState = return ()
     restoreMonadicState = return
-    
+
 instance PureRunnable Identity where
     runPureMonad _ (Identity a) = a
 
