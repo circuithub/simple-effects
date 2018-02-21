@@ -39,6 +39,7 @@ library
                      , MonadRandom
                      , exceptions
                      , text
+                     , bytestring
   ghc-options:         -Wall -O2
 
 test-suite tests

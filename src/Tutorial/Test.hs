@@ -1,6 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Tutorial.Test where
 
 import Data.Text as T
@@ -8,6 +11,10 @@ import Data.Text.IO as T
 import Control.Monad.IO.Class
 import Control.Effects.State
 import Control.Effects.List
+import Control.Concurrent
+import Control.Monad.Runnable
+import Control.Monad.Trans
+import Control.Monad
 
 addFruit :: (MonadIO m, MonadEffect (State [Text]) m) => m ()
 addFruit = do
@@ -25,7 +32,7 @@ main1 = implementStateViaStateT @[Text] [] $ do
     liftIO (print fruits)
 
 main2 :: IO ()
-main2 = 
+main2 =
     evaluateAll $
     implementStateViaStateT @[Text] [] $ do
         addFruit
@@ -65,3 +72,42 @@ main4 = do
             choose (Prelude.replicate 3 ())
             setState . succ =<< getState @Int
         liftIO . print =<< getState @Int
+
+data Fork
+instance Effect Fork where
+    data EffMethods Fork m = ForkMethods
+        { _fork :: m () -> m (Maybe ThreadId) }
+    type CanLift Fork t = RunnableTrans  t
+    mergeContext mm = ForkMethods
+        (\a -> do
+            ForkMethods m <- mm
+            m a)
+    liftThrough (ForkMethods f) = ForkMethods
+        (\a -> do
+            st <- currentTransState
+            lift (f (void (runTransformer a st)))
+            )
+
+instance MonadEffect Fork IO where
+    effect = ForkMethods (fmap Just . forkIO)
+
+fork :: MonadEffect Fork m => m () -> m (Maybe ThreadId)
+fork = _fork effect
+
+testMethod :: (MonadEffects '[State Int, Fork] m, MonadIO m) => m ()
+testMethod = do
+    modifyState @Int (+10)
+    tid <- void $ fork $ do
+        liftIO . print =<< getState @Int
+        liftIO $ threadDelay 2000000
+        modifyState @Int (+10)
+        liftIO . print =<< getState @Int
+    liftIO $ threadDelay 1000000
+    liftIO $ print tid
+    modifyState @Int (+10)
+    liftIO . print =<< getState @Int
+    liftIO $ threadDelay 3000000
+    liftIO . print =<< getState @Int
+
+main5 :: IO ()
+main5 = implementStateViaStateT @Int 0 testMethod
