@@ -4,6 +4,8 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-| The 'Async' effect allows you to fork new threads in monads other than just 'IO'.
 -}
 module Control.Effects.Async where
@@ -20,7 +22,8 @@ data Async
 -- | The type that represents the forked computation in the monad @m@ that eventually computes
 --   a value of type @a@. Depending on the monad, the computation may produce zero, one or even
 --   multiple values of that type.
-type AsyncThread m a = Async.Async (m a)
+newtype AsyncThread m a = AsyncThread (Async.Async (m a))
+    deriving (Functor, Eq, Ord)
 
 instance Effect Async where
     data EffMethods Async m = AsyncMethods
@@ -34,17 +37,22 @@ instance Effect Async where
         (\tma -> do
             st <- currentTransState
             !res <- lift (f (runTransformer tma st))
-            return $ fmap (lift >=> restoreTransState) res
+            return $ mapAsync (lift >=> restoreTransState) res
             )
         (\a -> do
             st <- currentTransState
-            res <- lift (g (fmap (`runTransformer` st) a))
+            res <- lift (g (mapAsync (`runTransformer` st) a))
             restoreTransState res
             )
+        where
+        mapAsync :: (m a -> n b) -> AsyncThread m a -> AsyncThread n b
+        mapAsync f' (AsyncThread as) = AsyncThread (fmap f' as)
 
 -- | The 'IO' implementation uses the @async@ library.
 instance MonadEffect Async IO where
-    effect = AsyncMethods (fmap (fmap return) . Async.async) (join . Async.wait)
+    effect = AsyncMethods
+        (fmap (AsyncThread . fmap return) . Async.async)
+        (\(AsyncThread as) -> join (Async.wait as))
 
 -- | Fork a new thread to run the given computation. The monadic context is forked into the new
 --   thread.
