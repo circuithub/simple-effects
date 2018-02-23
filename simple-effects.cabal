@@ -21,6 +21,7 @@ library
                      , Control.Effects.Early
                      , Control.Effects.Parallel
                      , Control.Effects.Generic
+                     , Control.Effects.Async
                      , Control.Monad.Runnable
                      , Tutorial.T1_Introduction
                      , Tutorial.T2_Details
@@ -40,6 +41,7 @@ library
                      , exceptions
                      , text
                      , bytestring
+                     , async
   ghc-options:         -Wall -O2
 
 test-suite tests

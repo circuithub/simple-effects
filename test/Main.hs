@@ -8,6 +8,10 @@ import Control.Effects.Signal
 import Control.Effects.State
 import Control.Effects.Parallel
 import Control.Effects.Early
+import Control.Effects.Async
+import Control.Effects.List
+import Control.Concurrent
+
 import Data.Function
 
 -- Should infer
@@ -71,3 +75,21 @@ main = do
         res <- parallelWithSequence (replicate 8 task)
         mapM_ (liftIO . print) res
     putStrLn "Parallel test done"
+
+parallelTest ::
+    (MonadEffects '[Async, NonDeterminism] m, MonadIO m) => m (AsyncThread m (Int, Char))
+parallelTest = do
+    n <- choose [1,2,3,4]
+    async $ do
+        liftIO $ threadDelay ((5 - n) * 1000000)
+        l <- choose "ab"
+        return (n, l)
+
+mainAsync :: IO ()
+mainAsync = do
+    threads <- evaluateToList parallelTest
+    forM_ threads $ \thread ->
+        evaluateToList (do
+            p <- waitAsync thread
+            liftIO $ print p
+            )
