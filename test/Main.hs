@@ -1,5 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleContexts, ScopedTypeVariables, BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeApplications #-}
 module Main where
 
 import Control.Monad.IO.Class
@@ -10,7 +11,9 @@ import Control.Effects.Parallel
 import Control.Effects.Early
 import Control.Effects.Async
 import Control.Effects.List
-import Control.Concurrent
+import Control.Effects.Yield
+import Control.Concurrent hiding (yield)
+import System.IO
 
 import Data.Function
 
@@ -93,3 +96,31 @@ mainAsync = do
             p <- waitAsync thread
             liftIO $ print p
             )
+
+yieldTest ::
+    (MonadEffects '[Yield Int, Async] m, MonadIO m) => m ()
+yieldTest = do
+    yield @Int 5
+    t <- async $ do
+        liftIO $ putStrLn "yielding 6"
+        yield @Int 6
+        liftIO $ putStrLn "yielding 10"
+        yield @Int 10
+
+    t2 <- async $ do
+        liftIO $ putStrLn "yielding 8"
+        yield @Int 8
+        liftIO $ putStrLn "yielding 9"
+        yield @Int 9
+    yield @Int 7
+    waitAsync t
+    waitAsync t2
+    return ()
+
+mainYield :: IO ()
+mainYield = do
+    hSetBuffering stdout LineBuffering
+    await <- implementYieldViaMVar @Int yieldTest
+    traverseYielded_ await $ \res -> do
+        print res
+        void getLine
