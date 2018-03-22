@@ -1,5 +1,5 @@
 name:                simple-effects
-version:             0.10.0.0
+version:             0.10.0.1
 synopsis:            A simple effect system that integrates with MTL
 description:         Please see the tutorial modules
 homepage:            https://gitlab.com/LukaHorvat/simple-effects
@@ -22,6 +22,7 @@ library
                      , Control.Effects.Parallel
                      , Control.Effects.Generic
                      , Control.Effects.Async
+                     , Control.Effects.Yield
                      , Control.Monad.Runnable
                      , Tutorial.T1_Introduction
                      , Tutorial.T2_Details
