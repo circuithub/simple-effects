@@ -19,15 +19,15 @@ class Effect e where
         forall t m. (CanLift e t, Monad m, Monad (t m))
         => EffMethods e m -> EffMethods e (t m)
     default liftThrough ::
-        forall t m. 
+        forall t m.
         ( Generic (EffMethods e m), MonadTrans t, Monad m, Monad (t m)
         , SimpleMethods (EffMethods e) m t )
         => EffMethods e m -> EffMethods e (t m)
     liftThrough = genericLiftThrough
-    
+
     mergeContext :: Monad m => m (EffMethods e m) -> EffMethods e m
-    default mergeContext :: 
-        (Generic (EffMethods e m), MonadicMethods (EffMethods e) m) 
+    default mergeContext ::
+        (Generic (EffMethods e m), MonadicMethods (EffMethods e) m)
         => m (EffMethods e m) -> EffMethods e m
     mergeContext = genericMergeContext
 
@@ -39,11 +39,11 @@ instance {-# OVERLAPPABLE #-}
     => MonadEffect e (t m) where
     effect = liftThrough effect
 
-newtype RuntimeImplemented e m a = RuntimeImplemented 
+newtype RuntimeImplemented e m a = RuntimeImplemented
     { getRuntimeImplemented :: ReaderT (EffMethods e m) m a }
-    deriving 
-        (Functor, Applicative, Monad, MonadPlus, Alternative, MonadState s, MonadIO, MonadCatch
-        , MonadThrow, MonadRandom )
+    deriving
+        ( Functor, Applicative, Monad, MonadPlus, Alternative, MonadState s, MonadIO, MonadCatch
+        , MonadThrow, MonadRandom, MonadMask )
 
 instance MonadTrans (RuntimeImplemented e) where
     lift = RuntimeImplemented . lift
@@ -65,7 +65,7 @@ instance RunnableTrans (RuntimeImplemented e) where
     restoreTransState = return
     runTransformer (RuntimeImplemented m) = runReaderT m
 
-instance (Effect e, Monad m, CanLift e (RuntimeImplemented e)) 
+instance (Effect e, Monad m, CanLift e (RuntimeImplemented e))
     => MonadEffect e (RuntimeImplemented e m) where
     effect = mergeContext $ RuntimeImplemented (liftThrough <$> ask)
 
