@@ -33,6 +33,8 @@ class Effect e where
 
 class (Effect e, Monad m) => MonadEffect e m where
     effect :: EffMethods e m
+    default effect :: (MonadEffect e m', Monad (t m'), CanLift e t, t m' ~ m) => EffMethods e m
+    effect = liftThrough effect
 
 instance {-# OVERLAPPABLE #-}
     (MonadEffect e m, Monad (t m), CanLift e t)
