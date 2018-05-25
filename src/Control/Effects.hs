@@ -61,7 +61,7 @@ instance MonadBaseControl b m => MonadBaseControl b (RuntimeImplemented e m) whe
     restoreM = RuntimeImplemented . restoreM
 
 instance RunnableTrans (RuntimeImplemented e) where
-    type TransformerResult (RuntimeImplemented e) m a = a
+    type TransformerResult (RuntimeImplemented e) a = a
     type TransformerState (RuntimeImplemented e) m = EffMethods e m
     currentTransState = RuntimeImplemented ask
     restoreTransState = return

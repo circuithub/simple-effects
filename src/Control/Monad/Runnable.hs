@@ -62,14 +62,14 @@ class MonadTrans t => RunnableTrans t where
     -- | The type of value that needs to be provided to run this transformer.
     type TransformerState t (m :: * -> *) :: *
     -- | The type of the result you get when you run this transformer.
-    type TransformerResult t (m :: * -> *) a :: *
+    type TransformerResult t a :: *
     -- | Get the current state value.
     currentTransState :: Monad m => t m (TransformerState t m)
     -- | If given a result, reconstruct the computation.
-    restoreTransState :: Monad m => TransformerResult t m a -> t m a
+    restoreTransState :: Monad m => TransformerResult t a -> t m a
     -- | Given the required state value and a computation, run the effects of the transformer
     --   in the underlying monad.
-    runTransformer :: Monad m => t m a -> TransformerState t m -> m (TransformerResult t m a)
+    runTransformer :: Monad m => t m a -> TransformerState t m -> m (TransformerResult t a)
 
 instance Runnable Identity where
     type MonadicState Identity = ()
@@ -89,7 +89,7 @@ instance Runnable IO where
 
 instance (Runnable m, RunnableTrans t, Monad (t m)) => Runnable (t m) where
     type MonadicState (t m) = (TransformerState t m, MonadicState m)
-    type MonadicResult (t m) a = MonadicResult m (TransformerResult t m a)
+    type MonadicResult (t m) a = MonadicResult m (TransformerResult t a)
     currentMonadicState = (,) <$> currentTransState <*> lift currentMonadicState
     restoreMonadicState s = lift (restoreMonadicState s) >>= restoreTransState
     runMonad (s, s') t = runMonad s' (runTransformer t s)
@@ -99,63 +99,63 @@ instance (PureRunnable m, RunnableTrans t, Monad (t m)) => PureRunnable (t m) wh
 
 instance RunnableTrans (SS.StateT s) where
     type TransformerState (SS.StateT s) m = s
-    type TransformerResult (SS.StateT s) m a = (a, s)
+    type TransformerResult (SS.StateT s) a = (a, s)
     currentTransState = get
     restoreTransState (a, s) = put s >> return a
     runTransformer = SS.runStateT
 
 instance RunnableTrans (LS.StateT s) where
     type TransformerState (LS.StateT s) m = s
-    type TransformerResult (LS.StateT s) m a = (a, s)
+    type TransformerResult (LS.StateT s) a = (a, s)
     currentTransState = get
     restoreTransState (a, s) = put s >> return a
     runTransformer = LS.runStateT
 
 instance Monoid s => RunnableTrans (SW.WriterT s) where
     type TransformerState (SW.WriterT s) m = ()
-    type TransformerResult (SW.WriterT s) m a = (a, s)
+    type TransformerResult (SW.WriterT s) a = (a, s)
     currentTransState = return ()
     restoreTransState (a, s) = SW.tell s >> return a
     runTransformer m _ = SW.runWriterT m
 
 instance Monoid s => RunnableTrans (LW.WriterT s) where
     type TransformerState (LW.WriterT s) m = ()
-    type TransformerResult (LW.WriterT s) m a = (a, s)
+    type TransformerResult (LW.WriterT s) a = (a, s)
     currentTransState = return ()
     restoreTransState (a, s) = LW.tell s >> return a
     runTransformer m _ = LW.runWriterT m
 
 instance RunnableTrans (ReaderT s) where
     type TransformerState (ReaderT s) m = s
-    type TransformerResult (ReaderT s) m a = a
+    type TransformerResult (ReaderT s) a = a
     currentTransState = ask
     restoreTransState = return
     runTransformer = runReaderT
 
 instance Monoid w => RunnableTrans (SR.RWST r w s) where
     type TransformerState (SR.RWST r w s) m = (r, s)
-    type TransformerResult (SR.RWST r w s) m a = (a, s, w)
+    type TransformerResult (SR.RWST r w s) a = (a, s, w)
     currentTransState = (,) <$> ask <*> get
     restoreTransState (a, s, w) = SR.tell w >> put s >> return a
     runTransformer m (r, s) = SR.runRWST m r s
 
 instance Monoid w => RunnableTrans (LR.RWST r w s) where
     type TransformerState (LR.RWST r w s) m = (r, s)
-    type TransformerResult (LR.RWST r w s) m a = (a, s, w)
+    type TransformerResult (LR.RWST r w s) a = (a, s, w)
     currentTransState = (,) <$> ask <*> get
     restoreTransState (a, s, w) = LR.tell w >> put s >> return a
     runTransformer m (r, s) = LR.runRWST m r s
 
 instance RunnableTrans IdentityT where
     type TransformerState IdentityT m = ()
-    type TransformerResult IdentityT m a = a
+    type TransformerResult IdentityT a = a
     currentTransState = return ()
     restoreTransState = return
     runTransformer m () = runIdentityT m
 
 instance Error e => RunnableTrans (ErrorT e) where
     type TransformerState (ErrorT e) m = ()
-    type TransformerResult (ErrorT e) m a = Either e a
+    type TransformerResult (ErrorT e) a = Either e a
     currentTransState = return ()
     restoreTransState (Left e) = throwError e
     restoreTransState (Right a) = return a
@@ -163,7 +163,7 @@ instance Error e => RunnableTrans (ErrorT e) where
 
 instance RunnableTrans (ExceptT e) where
     type TransformerState (ExceptT e) m = ()
-    type TransformerResult (ExceptT e) m a = Either e a
+    type TransformerResult (ExceptT e) a = Either e a
     currentTransState = return ()
     restoreTransState (Left e) = throwE e
     restoreTransState (Right a) = return a
@@ -171,7 +171,7 @@ instance RunnableTrans (ExceptT e) where
 
 instance RunnableTrans MaybeT where
     type TransformerState MaybeT m = ()
-    type TransformerResult MaybeT m a = Maybe a
+    type TransformerResult MaybeT a = Maybe a
     currentTransState = return ()
     restoreTransState Nothing = mzero
     restoreTransState (Just a) = return a
@@ -179,7 +179,7 @@ instance RunnableTrans MaybeT where
 
 instance RunnableTrans ListT where
      type TransformerState ListT m = ()
-     type TransformerResult ListT m a = [a]
+     type TransformerResult ListT a = [a]
      currentTransState = return ()
      restoreTransState = fromFoldable
      runTransformer m _ = toList m
