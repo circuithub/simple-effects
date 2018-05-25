@@ -12,6 +12,7 @@ import Control.Effects.Early
 import Control.Effects.Async
 import Control.Effects.List
 import Control.Effects.Yield
+import Control.Effects.Resource
 import Control.Concurrent hiding (yield)
 import System.IO
 
@@ -124,3 +125,8 @@ mainYield = do
     traverseYielded_ await $ \res -> do
         print res
         void getLine
+
+testResource = evaluateAll $ bracket
+    (choose [True, False] >>= \tf -> liftIO (putStrLn ("acq " ++ show tf)) >> return tf)
+    (\tf _ -> liftIO $ putStrLn ("cleaning " ++ show tf))
+    (\tf -> if tf then liftIO $ putStrLn "true" else error "io err" >> liftIO (putStrLn "false") )
