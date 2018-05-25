@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, RankNTypes, TypeFamilies, MultiParamTypeClasses, LambdaCase #-}
 {-# LANGUAGE FlexibleContexts, InstanceSigs, NoMonomorphismRestriction, FlexibleInstances #-}
-{-# LANGUAGE DataKinds, UndecidableInstances, TypeOperators, StandaloneDeriving, DeriveAnyClass #-}
+{-# LANGUAGE DataKinds, UndecidableInstances, TypeOperators #-}
 {-# LANGUAGE ConstraintKinds #-}
 -- | Provides the 'Bracket' effect for handing resource acquisition and safe cleanup.
 module Control.Effects.Resource where
@@ -16,7 +16,6 @@ import qualified Control.Monad.Trans.Writer.Strict as SW
 import qualified Control.Monad.Trans.Writer.Lazy as LW
 import qualified Control.Monad.Trans.RWS.Strict as SR
 import qualified Control.Monad.Trans.RWS.Lazy as LR
-import ListT
 
 -- | Class of transformers that don't introduce additional exit points to a computation.
 --
@@ -135,9 +134,7 @@ instance Unexceptional (LR.RWST r w s)
 instance Unexceptional IdentityT
 instance Unexceptional (ReaderT r)
 instance Unexceptional ListT
-
-
-
+instance Unexceptional (RuntimeImplemented e)
 
 -- | A simpler version of 'bracket' that doesn't use the results of the parameters.
 bracket_ :: MonadEffect Bracket m => m resource -> m cleanupRes -> m result -> m result
@@ -156,8 +153,8 @@ type family UnexceptionalError (t :: (* -> *) -> * -> *) :: Constraint where
         ':$$: 'Text "If you need this instance, please let me know what you think should happen." )
     UnexceptionalError t = TypeError
         ( 'Text "The Bracket effect doesn't know about the transformer " ':<>: 'ShowType t ':$$:
-          'Text "While the effect can be used with any transformer that has a RunnableTrans instance, \
-          \it's dangerous to do so implicitly because the transformer might introduce an additional \
-          \exit point to the computation (like IO, MaybeT, ExceptT and friends do)" ':$$:
-          'Text "If you're sure that it doesn't, give it an 'Unexceptional' instance:" ':$$:
-          'Text "instance Unexceptional (" ':<>: 'ShowType t ':<>: 'Text ")" )
+        'Text "While the effect can be used with any transformer that has a RunnableTrans instance, \
+        \it's dangerous to do so implicitly because the transformer might introduce an additional \
+        \exit point to the computation (like IO, MaybeT, ExceptT and friends do)" ':$$:
+        'Text "If you're sure that it doesn't, give it an 'Unexceptional' instance:" ':$$:
+        'Text "instance Unexceptional (" ':<>: 'ShowType t ':<>: 'Text ")" )
