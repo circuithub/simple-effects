@@ -6,13 +6,13 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | The 'MonadState' you know and love with some differences. First, there's no functional
 --   dependency limiting your stack to a single state type. This means less type inference so
---   it might not be enough to just write 'getState'. Write 'getState @MyStateType' instead using
---   TypeApplications.
+--   it might not be enough to just write 'getState'. Write @'getState' \@MyStateType@ instead using
+--   @TypeApplications@.
 --
 --   Second, the functions have less generic names and are called 'getState' and 'setState'.
 --
 --   Third, since it's a part of this effect framework, you get an 'implement' function with
---   which you can provide a different state implementation _at runtime_.
+--   which you can provide a different state implementation /at runtime/.
 module Control.Effects.State (module Control.Effects.State, module Control.Effects) where
 
 import Import hiding (State)
