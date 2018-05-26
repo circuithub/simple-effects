@@ -45,19 +45,27 @@ class Runnable m => PureRunnable m where
 
 -- | A class of transformers that can run their effects in the underlying monad.
 --
---   The following laws need to hold.
+-- The following laws need to hold:
 --
--- @
---   \\t -> do st <- 'currentTransState'
---            res <- 'lift' ('runTransformer' t st)
---            'restoreTransState' res
---   == 'id'
--- @
+-- [1]
+--     Running a computation that only uses the effects /of the transformer/ (represented here
+--     by stating that the computation is polymorphic in the underlying monad) using the current
+--     state, and then restoring the result is the same as doing nothing.
 --
--- @
---   f :: (forall a. m a -> m a)
---   \\m s -> runTransformer (lift (f m)) s == \\m s -> f (runTransformer (lift m) s)
--- @
+--     @
+--     t :: forall m. Monad m => t m a
+--     t == (currentTransState >>= lift . runTransformer t >>= restoreTransState)
+--     @
+--
+-- [2]
+--     Running a computation that only uses the effects /of the underlying monad/ (represented here
+--     by stating that the computation is polymorphic in the transformer) using /any/ state, and
+--     then restoring the result is the same as doing nothing.
+--
+--     @
+--     t :: forall t. MonadTrans t => t m a -> t m a
+--     t == (lift (runTransformer t s) >>= restoreTransState)
+--     @
 class MonadTrans t => RunnableTrans t where
     -- | The type of value that needs to be provided to run this transformer.
     type TransformerState t (m :: * -> *) :: *
@@ -65,7 +73,7 @@ class MonadTrans t => RunnableTrans t where
     type TransformerResult t a :: *
     -- | Get the current state value.
     currentTransState :: Monad m => t m (TransformerState t m)
-    -- | If given a result, reconstruct the computation.
+    -- | Given a result, interpret it as a computation. This restores the state of the transformer.
     restoreTransState :: Monad m => TransformerResult t a -> t m a
     -- | Given the required state value and a computation, run the effects of the transformer
     --   in the underlying monad.
