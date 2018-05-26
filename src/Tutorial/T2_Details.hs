@@ -104,27 +104,26 @@ instance 'MonadEffect' ('State' s) m => 'MonadEffect' ('State' s) ('ReaderT' r m
     The core of every effect is it's 'Effect' instance. Here's how the class is defined:
 
 @
-class 'Effect' e where
-    data 'EffMethods' e (m :: * -> *) :: *
+class 'Effect' (e :: (* -> *) -> *) where
     type 'CanLift' e (t :: (* -> *) -> * -> *) :: 'Constraint'
     type 'CanLift' e t = 'MonadTrans' t
     'liftThrough' ::
         ('CanLift' e t, 'Monad' m, 'Monad' (t m))
-        => 'EffMethods' e m -> 'EffMethods' e (t m)
-    'mergeContext' :: 'Monad' m => m ('EffMethods' e m) -> 'EffMethods' e m
+        => e m -> e (t m)
+    'mergeContext' :: 'Monad' m => m (e m) -> e m
 @
 
-    The 'EffMethods' associated data type is where you specify the functionality that your effect
+    The type @e@ is the name of your effect and it's where you specify the functionality that your effect
     provides. This will be a record of monadic functions. For example, there's how it's instantiated
     for the state effect:
 
 @
-data 'EffMethods' ('State' s) m = 'StateMethods'
+data 'State' s m = 'StateMethods'
     { '_getState' :: m s
     , '_setState' :: s -> m () }
 @
 
-    Then there's the 'CanLift' type. It specifies the constraint that a transformer needs to satisfy
+    Then there's the 'CanLift' associated type. It specifies the constraint that a transformer needs to satisfy
     to be able to lift the effect through it. Usually, 'MonadTrans' is all you need, so that's the
     default instantiation. Some more complicated effects have tighter demands.
 
@@ -165,17 +164,17 @@ f mamb a = do
         '_setState' sm s }
 @
 
-    If these implementations seem pretty mechanical it's because they are. So mechanical, in fact,
+    If these implementations seem pretty mechanical, it's because they are. So mechanical, in fact,
     that in most of the cases you don't even need to write them. Just derive the 'Generic' class
-    for your effect and you get those definitions for free. Here's the actual instance
-    @'Effect' ('State' s)@:
+    for your effect and you get those definitions for free. Here's the definition of the @'State' s@
+    effect:
 
 @
-instance 'Effect' ('State' s) where
-    data 'EffMethods' ('State' s) m = 'StateMethods'
-        { '_getState' :: m s
-        , '_setState' :: s -> m () }
-        deriving ('Generic')
+data 'EffMethods' ('State' s) m = 'StateMethods'
+    { '_getState' :: m s
+    , '_setState' :: s -> m () }
+    deriving ('Generic')
+instance 'Effect' ('State' s)
 @
 
     There are a couple of conditions though. The automatic method deriving only works for what
@@ -198,11 +197,11 @@ instance 'Effect' ('State' s) where
 
 @
 class ('Effect' e, 'Monad' m) => 'MonadEffect' e m where
-    'effect' :: 'EffMethods' e m
+    'effect' :: e m
 @
 
-    So it just says that monads that implement the effect @e@ need to provide a record of
-    the effect's methods that work in that monad.
+    So it just says that monads that implement the effect @e@ need to provide an implementation of
+    the effect's methods that works in that monad.
 
     As discussed in the transformers section, there's an
     overlappable instance given for the 'MonadEffect' class. Here it is:
@@ -236,10 +235,10 @@ instance 'Monad' m => 'MonadEffect' ('State' s) ('StateT' s m) where
 
 @
 newtype 'RuntimeImplemented' e m a = 'RuntimeImplemented'
-    { 'getRuntimeImplemented' :: 'ReaderT' ('EffMethods' e m) m a }
+    { 'getRuntimeImplemented' :: 'ReaderT' (e m) m a }
 @
 
-    It's a wrapper around a 'ReaderT' that carries around an @'EffMethods' e m@ record.
+    It's a wrapper around a 'ReaderT' that carries around an @e m@ implementation.
     @'RuntimeImplemented' e@ has a @'MonadEffect' e@ instance defined like this
 
 @
@@ -253,7 +252,7 @@ instance ('Effect' e, 'Monad' m, 'CanLift' e ('RuntimeImplemented' e))
     'implement' function:
 
 @
-'implement' :: forall e m a. 'EffMethods' e m -> 'RuntimeImplemented' e m a -> m a
+'implement' :: forall e m a. e m -> 'RuntimeImplemented' e m a -> m a
 'implement' em ('RuntimeImplemented' r) = 'runReaderT' r em
 @
 

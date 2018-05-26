@@ -31,35 +31,30 @@ import Control.Concurrent
     To start off, we'll define an effect for working with the filesystem. To keep it simple, we'll
     define two functions. One for reading the contents of a file, and one for writing them to a file.
 
-    The first step is to make a name for our effect. Say, @Files@ for example. We declare an empty
-    datatype with that name:
+    The first step is to declare a new record data type that holds the methods of our effect.
+    The signatures of our functions will be @'FilePath' -> m 'ByteString'@ and
+    @'FilePath' -> 'ByteString' -> m ()@ respectively.
 
 @
-data Files
+data Files m = FilesMethods
+    { _readFile :: 'FilePath' -> m 'ByteString'
+    , _writeFile :: 'FilePath' -> 'ByteString' -> m () }
+    deriving ('Generic')
 @
 
     Next, we need to provide an instance of the 'Effect' class for our effect.
 
-    The signatures of our functions will be @'FilePath' -> m 'ByteString'@ and
-    @'FilePath' -> 'ByteString' -> m ()@ respectively. Both of them are methods of what we call, in the
+    Both of our methods are what we call, in the
     jargon of this library, a simple effect. It means that they are functions that return a monadic
     action, and that their arguments don't depend on that monad. As an example, @m Int -> m Int@
     isn't a method of a simple effect because the argument depends on @m@.
-
     Because of this fact, the instance is super simple:
 
 @
-instance 'Effect' Files where
-    data 'EffMethods' Files m = FilesMethods
-        { _readFile :: 'FilePath' -> m 'ByteString'
-        , _writeFile :: 'FilePath' -> 'ByteString' -> m () }
-        deriving ('Generic')
+instance 'Effect' Files
 @
 
-    The 'Effect' class requires you to provide a record of methods for your effect. This is done
-    with an associated data type. You can read about them here
-    <https://wiki.haskell.org/GHC/Type_families#Associated_family_declarations>
-    The class also has two functions: 'liftThrough' and 'mergeContext'. Luckily, because our effect
+    The class has two functions: 'liftThrough' and 'mergeContext'. Luckily, because our effect
     is simple (and mostly they will be), it's enough to just derive 'Generic' for our type. The
     functions are then defined for us.
 
@@ -72,11 +67,11 @@ writeFile :: 'MonadEffect' Files m => 'FilePath' -> 'ByteString' -> m ()
 FilesMethods readFile writeFile = 'effect'
 @
 
-    So how does this work, and what does it even do? Well, we defined how a record of methods looks
+    So how does this work, and what does it even do? Well, we defined what a record of methods looks like
     for our effect, but how is that record actually constructed? If we wanted to /use/ our methods
     where would we get them from? Enter the 'effect' function. It's type signature is
-    @'MonadEffect' e m => 'EffMethods' e m@. It means that for every monad @m@ which supports the
-    effect @e@, the 'effect' function gives us a record of the effect's methods. Let's say we want
+    @'MonadEffect' e m => e m@. It means that for every monad @m@ which supports the
+    effect @e@, the 'effect' function gives us an implementation of the effect's methods. Let's say we want
     to read the contents of a file. First we'd use the 'effect' function to get the methods of our
     @Files@ effect, then we'd get the @_readFile@ function out of it, and finally we'd use that
     function.
@@ -150,19 +145,18 @@ implementFilesViaMap :: 'Monad' m => 'RuntimeImplemented' Files ('StateT' ('Map'
 {- $print
     For our next effect we'll do logging. Just a simple printing function that takes anything
     with a 'Show' instance and logs it somewhere.
+    The signature we want is @print :: ('MonadEffect' Print m, 'Show' a) => a -> m ()@.
 
-    The signature we want is @print :: ('MonadEffect' Print m, 'Show' a) => a -> m ()@. Now here's
+    Now here's
     the main issue. The @a@ variable isn't mentioned anywhere in the effect. After all, we don't
     want a separate effect for each possible type. We want the @Print@ effect to provide printing
     /for all/ types with a 'Show' instance. To this end we'll use the @RankNTypes@ extension and define
     our 'Effect' instance like this:
 
 @
-data Print
-
+newtype Print m = PrintMethods
+    { _print :: forall a. Show a => a -> m () }
 instance 'Effect' Print where
-    data 'EffMethods' Print m = PrintMethods
-        { _print :: forall a. Show a => a -> m () }
 @
 
     Notice we didn't derive 'Generic'. This is because we can't. Despite our effect being simple
@@ -174,13 +168,13 @@ instance 'Effect' Print where
     The two functions are
 
 @
-'liftThrough' :: ('MonadTrans' t, 'Monad' m, 'Monad' (t m)) => 'EffMethods' e m -> 'EffMethods' e (t m)
+'liftThrough' :: ('MonadTrans' t, 'Monad' m, 'Monad' (t m)) => e m -> e (t m)
 @
 
     and
 
 @
-'mergeContext' :: 'Monad' m => m ('EffMethods' e m) -> 'EffMethods' e m
+'mergeContext' :: 'Monad' m => m (e m) -> e m
 @
 
     [Note]
@@ -256,11 +250,10 @@ instance 'Effect' Print where
     Instead we could have defined the whole thing like this:
 
 @
-data Print
+data Print m = PrintMethods
+    { _printString :: 'String' -> m () }
+    deriving ('Generic')
 instance 'Effect' Print where
-    data 'EffMethods' Print m = PrintMethods
-        { _printString :: 'String' -> m () }
-        deriving ('Generic')
 
 print :: ('MonadEffect' Print m, 'Show' a) => a -> m ()
 print = _printString 'effect' . 'show'
@@ -292,10 +285,9 @@ fork :: 'MonadEffect' Fork m => m () -> m ('Maybe' 'ThreadId')
     defining our effect and see where we get stuck:
 
 @
-data Fork
+data Fork m = ForkMethods
+    { _fork :: m () -> m ('Maybe' 'ThreadId') }
 instance 'Effect' Fork where
-    data 'EffMethods' Fork m = ForkMethods
-        { _fork :: m () -> m ('Maybe' 'ThreadId') }
     'mergeContext' mm = ForkMethods
         (\\a -> do
             ForkMethods m <- mm
@@ -318,8 +310,7 @@ a :: t m ()
     @a :: t m ()@ so it seems that we need a function that's opposite of 'lift'. Something like
     @unlift :: t m a -> m a@.
 
-
-    Turns out, that's not so simple to do. Imagine you have a function like with a type @a -> m b@.
+    Turns out, that's not so simple to do. Imagine you have a function of type @a -> m b@.
     In this case the @a ->@ part is @t@. If we specialize @unlift@ to that we get
     @unlift :: (a -> m b) -> m b@. There's no way to implement that function. To get @m b@ we need
     to have an @a@, but none are given to us.
@@ -353,10 +344,9 @@ a :: t m ()
     confusion (or perhaps to introduce more of it) here's the code:
 
 @
-data Fork
+data Fork m = ForkMethods
+    { _fork :: m () -> m ('Maybe' 'ThreadId') }
 instance 'Effect' Fork where
-    data 'EffMethods' Fork m = ForkMethods
-        { _fork :: m () -> m ('Maybe' 'ThreadId') }
     type 'CanLift' Fork t = 'RunnableTrans'  t
     'mergeContext' mm = ForkMethods
         (\\a -> do
@@ -380,7 +370,8 @@ instance 'Effect' Fork where
         are the final 'IO' ones. The state of the original computation does get shared with the
         forked one, so that's pretty useful, but if we care about what the forked computation /did/
         with that state, we need to communicate with the original thread manually through some 'IO'
-        mechanism like 'MVar's.
+        mechanism like 'MVar's. Check out the 'Async' effect that this library provides for an
+        alternative.
 
     What about the effect handlers? How do we write one for our @Fork@ effect? Here's one that
     ignores completely what the intended semantics were and just runs the thing sequentially:
