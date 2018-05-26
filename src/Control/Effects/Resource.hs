@@ -133,7 +133,6 @@ instance Unexceptional (SR.RWST r w s)
 instance Unexceptional (LR.RWST r w s)
 instance Unexceptional IdentityT
 instance Unexceptional (ReaderT r)
-instance Unexceptional ListT
 instance Unexceptional (RuntimeImplemented e)
 
 -- | A simpler version of 'bracket' that doesn't use the results of the parameters.
