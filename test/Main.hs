@@ -126,7 +126,7 @@ mainYield = do
         print res
         void getLine
 
-testResource = evaluateAll $ bracket
-    (choose [True, False] >>= \tf -> liftIO (putStrLn ("acq " ++ show tf)) >> return tf)
-    (\tf _ -> liftIO $ putStrLn ("cleaning " ++ show tf))
-    (\tf -> if tf then liftIO $ putStrLn "true" else error "io err" >> liftIO (putStrLn "false") )
+-- testResource = evaluateAll $ bracket
+--     (choose [True, False] >>= \tf -> liftIO (putStrLn ("acq " ++ show tf)) >> return tf)
+--     (\tf _ -> liftIO $ putStrLn ("cleaning " ++ show tf))
+--     (\tf -> if tf then liftIO $ putStrLn "true" else error "io err" >> liftIO (putStrLn "false") )

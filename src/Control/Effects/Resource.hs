@@ -24,15 +24,17 @@ import qualified Control.Monad.Trans.RWS.Lazy as LR
 -- Counter-examples: @'ExceptT' e@, @'ErrorT' e@, 'MaybeT', 'ListT'
 class Unexceptional (t :: (* -> *) -> * -> *)
 
-data Bracket
+newtype Bracket m = BracketMethods
+    { _bracket ::
+        forall resource result cleanupRes.
+        m resource
+        -> (resource -> Maybe result -> m cleanupRes)
+        -> (resource -> m result)
+        -> m result }
 instance Effect Bracket where
-    data EffMethods Bracket m = BracketMethods
-        { _bracket ::
-            forall resource result cleanupRes.
-            m resource -> (resource -> Maybe result -> m cleanupRes) -> (resource -> m result) -> m result }
     type CanLift Bracket t = (RunnableTrans t, Unexceptional t)
     liftThrough :: forall m t. (RunnableTrans t, Monad (t m), Monad m)
-        => EffMethods Bracket m -> EffMethods Bracket (t m)
+        => Bracket m -> Bracket (t m)
     liftThrough (BracketMethods f) = BracketMethods g
         where
         g :: forall a b c. t m a -> (a -> Maybe c -> t m b) -> (a -> t m c) -> t m c

@@ -9,11 +9,11 @@
 --   will be the result /of calling the 'signal' function/. This effectively allows you to have
 --   recoverable exceptions at the throw site, instead of just at the handling site.
 module Control.Effects.Signal
-    ( ResumeOrBreak(..), Signal, throwSignal, handleSignal
+    ( ResumeOrBreak(..), Signal(..), throwSignal, handleSignal
     , Throw, handleException, handleToEither, module Control.Effects
     , module Control.Monad.Trans.Except, MaybeT(..), discardAllExceptions, showAllExceptions
-    , HandleException, handleWithoutDiscarding, handleToEitherRecursive, SomeSignal, signal
-    , EffMethods(..) ) where
+    , HandleException(..), handleWithoutDiscarding, handleToEitherRecursive, SomeSignal
+    , signal ) where
 
 import Import hiding (liftThrough)
 import Control.Monad.Trans.Except
@@ -23,11 +23,10 @@ import Control.Effects
 import Control.Monad.Runnable
 import GHC.Generics
 
-data Signal a b
+newtype Signal a b m = SignalMethods
+    { _signal :: a -> m b }
+    deriving (Generic)
 instance Effect (Signal a b) where
-    data EffMethods (Signal a b) m = SignalMethods
-        { _signal :: a -> m b }
-        deriving (Generic)
 
 signal :: forall a b m. MonadEffect (Signal a b) m => a -> m b
 SignalMethods signal = effect
@@ -58,7 +57,7 @@ instance {-# INCOHERENT #-} (Monad m, b ~ c) =>
 type Throw e = Signal e Void
 
 -- | The handle function will return a value of this type.
-data ResumeOrBreak b c = 
+data ResumeOrBreak b c =
     Resume b -- ^ Give a value to the caller of 'signal' and keep going.
     | Break c -- ^ Continue the execution after the handler. The handler will return this value
 
@@ -116,14 +115,13 @@ mapLeft _ (Right b) = Right b
 showAllExceptions :: Functor m => ExceptT SomeSignal m a -> m (Either Text a)
 showAllExceptions = fmap (mapLeft getSomeSignal) . runExceptT
 
-data HandleException e
+newtype HandleException e m = HandleExceptionMethods
+    { _handleWithoutDiscarding :: forall a. (e -> m a) -> m a -> m a  }
 instance Effect (HandleException e) where
-    data EffMethods (HandleException e) m = HandleExceptionMethods
-        { _handleWithoutDiscarding :: forall a. (e -> m a) -> m a -> m a  }
     type CanLift (HandleException e) t = RunnableTrans t
     liftThrough ::
         forall t m. (CanLift (HandleException e) t, Monad m, Monad (t m))
-        => EffMethods (HandleException e) m -> EffMethods (HandleException e) (t m)
+        => HandleException e m -> HandleException e (t m)
     liftThrough (HandleExceptionMethods rec') = HandleExceptionMethods $ \f e -> do
         st <- currentTransState
         res <- lift (rec' (\ex -> runTransformer (f ex) st) (runTransformer e st))
@@ -136,7 +134,7 @@ instance Effect (HandleException e) where
 --   You'll want to use this if you're writing a recursive function. Using the regular handlers
 --   in that case will result with infinite types.
 --
---   Since this function doesn't discard constraints, you still need to handle the exception on 
+--   Since this function doesn't discard constraints, you still need to handle the exception on
 --   the whole computation.
 --
 --   Here's a slightly contrived example.
@@ -157,12 +155,12 @@ instance Effect (HandleException e) where
 -- occured or it preserves all of them up to the point of the exception.
 -- Handling exceptions last and handling them first will produce the former and latter
 -- behaviour respectively.
-handleWithoutDiscarding :: 
+handleWithoutDiscarding ::
     forall e m a. MonadEffect (HandleException e) m => (e -> m a) -> m a -> m a
 HandleExceptionMethods handleWithoutDiscarding = effect
 
 instance Monad m => MonadEffect (HandleException e) (ExceptT e m) where
-    effect = HandleExceptionMethods $ \f -> 
+    effect = HandleExceptionMethods $ \f ->
         ExceptT . (either (runExceptT . f) (return . Right) <=< runExceptT)
 
 -- | 'handleToEither' that doesn't discard 'Throws' constraints. See documentation for

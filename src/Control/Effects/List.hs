@@ -12,10 +12,9 @@ import ListT hiding (take)
 
 import Control.Effects
 
-data NonDeterminism
+newtype NonDeterminism m = NonDeterminismMethods
+    { _choose :: forall a. [a] -> m a }
 instance Effect NonDeterminism where
-    data EffMethods NonDeterminism m = NonDeterminismMethods
-        { _choose :: forall a. [a] -> m a }
     liftThrough (NonDeterminismMethods c) = NonDeterminismMethods (lift . c)
     mergeContext m = NonDeterminismMethods (\a -> do
         lm <- m

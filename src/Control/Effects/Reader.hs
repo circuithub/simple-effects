@@ -15,11 +15,10 @@ module Control.Effects.Reader (module Control.Effects.Reader, module Control.Eff
 import Control.Effects
 import GHC.Generics
 
-data ReadEnv e
-instance Effect (ReadEnv e) where
-    data EffMethods (ReadEnv e) m = ReadEnvMethods
-        { _readEnv :: m e }
-        deriving (Generic)
+newtype ReadEnv e m = ReadEnvMethods
+    { _readEnv :: m e }
+    deriving (Generic)
+instance Effect (ReadEnv e)
 
 -- | Read a value of type 'e'. Use with the TypeApplications extension to
 --   help with type inference

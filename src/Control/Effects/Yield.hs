@@ -18,12 +18,10 @@ import GHC.Generics
 import Control.Concurrent.MVar
 import Control.Concurrent.Chan
 
-data Yield a
-
-instance Effect (Yield a) where
-    data EffMethods (Yield a) m = YieldMethods
-        { _yield :: a -> m () }
-        deriving (Generic)
+newtype Yield a m = YieldMethods
+    { _yield :: a -> m () }
+    deriving (Generic)
+instance Effect (Yield a)
 
 -- | Output a value of type @a@. The semantics are determined by the implementation, but usually this
 --   will block until the next value is requested by the consumer.

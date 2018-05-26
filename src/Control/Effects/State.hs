@@ -21,13 +21,11 @@ import GHC.Generics
 
 import Control.Effects
 
-data State s
-
+data State s m = StateMethods
+    { _getState :: m s
+    , _setState :: s -> m () }
+    deriving (Generic)
 instance Effect (State s) where
-    data EffMethods (State s) m = StateMethods
-        { _getState :: m s
-        , _setState :: s -> m () }
-        deriving (Generic)
 
 -- | Get current value of the state with the type 's'.
 -- You can use type applications to tell the type checker which type of state you want.
@@ -52,16 +50,16 @@ instance Monad m => MonadEffect (State s) (StateT s m) where
     effect = StateMethods get put
 
 -- | Implement the state effect via the StateT transformer. If you have a function with a type like
--- @f :: MonadEffect (State Int) m => m ()@ you can use 'implementStateViaStateT' to satisfy the 
+-- @f :: MonadEffect (State Int) m => m ()@ you can use 'implementStateViaStateT' to satisfy the
 -- 'MonadEffect' constraint.
 --
 -- @implementStateViaStateT \@Int 0 f :: Monad m => m ()@
 implementStateViaStateT :: forall s m a. Monad m => s -> StateT s m a -> m a
-implementStateViaStateT = flip evalStateT 
+implementStateViaStateT = flip evalStateT
 
 -- | Handle the state requirement using an 'IORef'. If you have a function with a type like
--- @f :: MonadEffect (State Int) m => m ()@ you can use 'implementStateViaIORef' to replace the 
--- 'MonadEffect' constraint with 'MonadIO'. This is convenient if you already have a 'MonadIO' 
+-- @f :: MonadEffect (State Int) m => m ()@ you can use 'implementStateViaIORef' to replace the
+-- 'MonadEffect' constraint with 'MonadIO'. This is convenient if you already have a 'MonadIO'
 -- constraint and you don't want to use the 'StateT' transformer for some reason.
 --
 -- @implementStateViaIORef \@Int 0 f :: MonadIO m => m ()@
@@ -70,4 +68,3 @@ implementStateViaIORef initial m = do
     ref <- liftIO (newIORef initial)
     m & implement (StateMethods (liftIO (readIORef  ref)) (liftIO . writeIORef ref))
 {-# INLINE implementStateViaIORef #-}
-

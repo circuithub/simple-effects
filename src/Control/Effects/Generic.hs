@@ -15,12 +15,12 @@ data M a
 class (Generic (a m), Generic (a (t m)), Generic (a M)) => SimpleMethods a m t where
     liftSimple :: a m -> a (t m)
 
-instance 
+instance
     ( Rep (a m) ~ D1 m1 (C1 m2 p)
     , Rep (a M) ~ D1 m1 (C1 m2 pM)
     , Rep (a (t m)) ~ D1 m1 (C1 m2 (LiftedProducts p pM m t))
     , ProductOfSimpleMethods p pM m t
-    , Generic (a m), Generic (a (t m)), Generic (a M) ) 
+    , Generic (a m), Generic (a (t m)), Generic (a M) )
     => SimpleMethods a m t where
     liftSimple a = case Gen.from a of
         M1 (M1 p) -> Gen.to (M1 (M1 (liftProducts (Proxy @m) (Proxy @t) (Proxy @pM) p)))
@@ -31,19 +31,19 @@ class ProductOfSimpleMethods p pM m t where
     liftProducts :: Proxy m -> Proxy t -> Proxy pM -> p x -> LiftedProducts p pM m t x
 
 instance SimpleMethod f fM m t => ProductOfSimpleMethods (S1 m1 (Rec0 f)) (S1 m1 (Rec0 fM)) m t where
-    type LiftedProducts (S1 m1 (Rec0 f)) (S1 m1 (Rec0 fM)) m t = 
+    type LiftedProducts (S1 m1 (Rec0 f)) (S1 m1 (Rec0 fM)) m t =
         (S1 m1 (Rec0 (LiftedMethod f fM m t)))
     liftProducts p1 p2 _ (M1 (K1 f)) = M1 (K1 (liftMethod p1 p2 (Proxy @fM) f))
     {-# INLINE liftProducts #-}
-instance 
-    (ProductOfSimpleMethods f1 f1M m t, ProductOfSimpleMethods f2 f2M m t)  
+instance
+    (ProductOfSimpleMethods f1 f1M m t, ProductOfSimpleMethods f2 f2M m t)
     => ProductOfSimpleMethods (f1 :*: f2) (f1M :*: f2M) m t where
-    type LiftedProducts (f1 :*: f2) (f1M :*: f2M) m t = 
+    type LiftedProducts (f1 :*: f2) (f1M :*: f2M) m t =
         LiftedProducts f1 f1M m t :*: LiftedProducts f2 f2M m t
-    liftProducts p1 p2 _ (f1 :*: f2) = 
-        liftProducts p1 p2 (Proxy @f1M) f1 :*: liftProducts p1 p2 (Proxy @f2M) f2 
+    liftProducts p1 p2 _ (f1 :*: f2) =
+        liftProducts p1 p2 (Proxy @f1M) f1 :*: liftProducts p1 p2 (Proxy @f2M) f2
     {-# INLINE liftProducts #-}
-    
+
 class (MonadTrans t, Monad m) => SimpleMethod f fM (m :: * -> *) (t :: (* -> *) -> * -> *) where
     type LiftedMethod f fM m t
     liftMethod :: Proxy m -> Proxy t -> Proxy fM -> f -> LiftedMethod f fM m t
@@ -58,26 +58,26 @@ instance (f ~ (a -> b), SimpleMethod b bM m t, IndependentOfM a m) => SimpleMeth
     liftMethod p1 p2 _ f a = liftMethod p1 p2 (Proxy @bM) (f a :: b)
     {-# INLINE liftMethod #-}
 instance {-# OVERLAPPABLE #-}
-    ( TypeError ('Text "Effect methods must be monadic actions or functions resulting in monadic actions") 
+    ( TypeError ('Text "Effect methods must be monadic actions or functions resulting in monadic actions")
     , Monad m, MonadTrans t )
     => SimpleMethod a b m t
 
 class IndependentOfM (a :: k) (m :: * -> *) where
-instance 
-    (IndependentOfM a m, IndependentOfM b m) 
+instance
+    (IndependentOfM a m, IndependentOfM b m)
     => IndependentOfM (a b) m
-instance 
-    TypeError 
-        ('Text "Parameters of methods can't depend on the monadic context (" 
-        ':<>: 'ShowType m 
+instance
+    TypeError
+        ('Text "Parameters of methods can't depend on the monadic context ("
+        ':<>: 'ShowType m
         ':<>: 'Text ")")
     => IndependentOfM M m
 instance {-# OVERLAPPABLE #-}
     IndependentOfM (a :: k) m
 
 genericLiftThrough ::
-    forall t e em m. (MonadTrans t, Monad m, Monad (t m), SimpleMethods (em e) m t)
-    => em e m -> em e (t m)
+    forall t e m. (MonadTrans t, Monad m, Monad (t m), SimpleMethods e m t)
+    => e m -> e (t m)
 genericLiftThrough = liftSimple
 {-# INLINE genericLiftThrough #-}
 
@@ -85,11 +85,11 @@ genericLiftThrough = liftSimple
 
 class MonadicMethods a m where
     mergeMonadicMethods :: m (a m) -> a m
-instance 
+instance
     ( Rep (a m) ~ D1 m1 (C1 m2 p)
     , Rep (a M) ~ D1 m1 (C1 m2 pM)
     , ProductOfMonadicMethods p pM a m
-    , Generic (a m), Generic (a M) ) 
+    , Generic (a m), Generic (a M) )
     => MonadicMethods a m where
     mergeMonadicMethods a = Gen.to (M1 (M1 (mergeMonadicProducts (Proxy @p) (Proxy @pM) a f)))
         where
@@ -103,11 +103,11 @@ instance MonadicMethod a f fM m => ProductOfMonadicMethods (S1 m1 (Rec0 f)) (S1 
         where
         g (M1 (K1 x)) = x
     {-# INLINE mergeMonadicProducts #-}
-instance 
-    (ProductOfMonadicMethods f1 f1M a m, ProductOfMonadicMethods f2 f2M a m)  
+instance
+    (ProductOfMonadicMethods f1 f1M a m, ProductOfMonadicMethods f2 f2M a m)
     => ProductOfMonadicMethods (f1 :*: f2) (f1M :*: f2M) a m where
-    mergeMonadicProducts _ _ ma f = 
-        mergeMonadicProducts (Proxy @f1) (Proxy @f1M) ma (g1 . f) 
+    mergeMonadicProducts _ _ ma f =
+        mergeMonadicProducts (Proxy @f1) (Proxy @f1M) ma (g1 . f)
         :*: mergeMonadicProducts (Proxy @f2) (Proxy @f2M) ma (g2 . f)
         where
         g1 (x :*: _) = x
@@ -127,7 +127,7 @@ instance (f ~ (b -> c), Monad m, MonadicMethod a c cM m) => MonadicMethod a f (b
         g = ($ b)
     {-# INLINE mergeMethod #-}
 instance {-# OVERLAPPABLE #-}
-    ( TypeError ('Text "Effect methods must be monadic actions or functions resulting in monadic actions") 
+    ( TypeError ('Text "Effect methods must be monadic actions or functions resulting in monadic actions")
     , Monad m )
     => MonadicMethod a f fM m
 

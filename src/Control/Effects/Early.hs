@@ -30,7 +30,7 @@
 --
 --   You can use the 'earlyReturn' function directly, or one of the helpers for common use cases.
 module Control.Effects.Early
-    ( module Control.Effects, Early, EffMethods(..)
+    ( module Control.Effects, Early(..)
     , earlyReturn, handleEarly, onlyDo, ifNothingEarlyReturn, ifNothingDo
     , ifLeftEarlyReturn, ifLeftDo ) where
 
@@ -39,15 +39,14 @@ import Import
 import Control.Effects
 
 newtype EarlyValue a = EarlyValue { getEarlyValue :: a }
-data Early a
+newtype Early a m = EarlyMethods
+    { _earlyReturn :: forall b. a -> m b }
 instance Effect (Early a) where
-    data EffMethods (Early a) m = EarlyMethods
-        { _earlyReturn :: forall b. a -> m b }
     liftThrough (EarlyMethods f) = EarlyMethods (lift . f)
     mergeContext m = EarlyMethods (\a -> do
         f <- _earlyReturn <$> m
         f a)
-    
+
 instance (Monad m, a ~ b) => MonadEffect (Early a) (ExceptT (EarlyValue b) m) where
     effect = EarlyMethods (throwE . EarlyValue)
 

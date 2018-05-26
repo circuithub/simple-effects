@@ -14,10 +14,10 @@ import Import
 import Control.Effects
 import qualified Control.Concurrent.Async as Async
 import Control.Monad.Runnable
-import Control.Effects.State
 
--- | The name of the effect
-data Async
+data Async m = AsyncMethods
+    { _async :: forall a. m a -> m (AsyncThread m a)
+    , _waitAsync :: forall a. AsyncThread m a -> m a }
 
 -- | The type that represents the forked computation in the monad @m@ that eventually computes
 --   a value of type @a@. Depending on the monad, the computation may produce zero, one or even
@@ -26,9 +26,6 @@ newtype AsyncThread m a = AsyncThread (Async.Async (m a))
     deriving (Functor, Eq, Ord)
 
 instance Effect Async where
-    data EffMethods Async m = AsyncMethods
-        { _async :: forall a. m a -> m (AsyncThread m a)
-        , _waitAsync :: forall a. AsyncThread m a -> m a }
     type CanLift Async t = RunnableTrans t
     mergeContext mm = AsyncMethods
         (\a -> mm >>= ($ a) . _async)

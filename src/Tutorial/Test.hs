@@ -73,10 +73,9 @@ main4 = do
             setState . succ =<< getState @Int
         liftIO . print =<< getState @Int
 
-data Fork
+newtype Fork m = ForkMethods
+    { _fork :: m () -> m (Maybe ThreadId) }
 instance Effect Fork where
-    data EffMethods Fork m = ForkMethods
-        { _fork :: m () -> m (Maybe ThreadId) }
     type CanLift Fork t = RunnableTrans  t
     mergeContext mm = ForkMethods
         (\a -> do
