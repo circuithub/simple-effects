@@ -29,7 +29,7 @@ ex3 = do
     void $ discardAllExceptions ex1
     void $ showAllExceptions ex2
     handleException (\(_ :: Bool) -> return ()) ex2
-    handleSignal (\(_ :: Bool) -> Resume 5) ex1
+    handleSignal (\(_ :: Bool) -> return $ Resume 5) ex1
 
 -- Nested Early
 testEarly1 :: Monad m => m Bool

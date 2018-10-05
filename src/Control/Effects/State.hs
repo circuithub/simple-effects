@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE FlexibleInstances #-}
 -- | The 'MonadState' you know and love with some differences. First, there's no functional
 --   dependency limiting your stack to a single state type. This means less type inference so
 --   it might not be enough to just write 'getState'. Write @'getState' \@MyStateType@ instead using
@@ -26,6 +27,7 @@ data State s m = StateMethods
     , _setState :: s -> m () }
     deriving (Generic)
 instance Effect (State s) where
+    type MonadConstraint (State s) m = UniqueEffect State m s
 
 -- | Get current value of the state with the type 's'.
 -- You can use type applications to tell the type checker which type of state you want.
@@ -46,6 +48,8 @@ modifyState f = do
     let s' = f s
     s' `seq` setState s'
 
+instance UniqueEffect State (StateT s m) s
+instance UniqueEffect State (RuntimeImplemented (State s) m) s
 instance Monad m => MonadEffect (State s) (StateT s m) where
     effect = StateMethods get put
 
@@ -68,3 +72,8 @@ implementStateViaIORef initial m = do
     ref <- liftIO (newIORef initial)
     m & implement (StateMethods (liftIO (readIORef  ref)) (liftIO . writeIORef ref))
 {-# INLINE implementStateViaIORef #-}
+
+test :: MonadEffect (State Int) m => m ()
+test = do
+    s <- getState
+    setState s
