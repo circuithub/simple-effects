@@ -24,6 +24,7 @@ library
                      , Control.Effects.Async
                      , Control.Effects.Yield
                      , Control.Effects.Resource
+                     , Control.Effects.Newtype
                      , Control.Monad.Runnable
                      , Tutorial.T1_Introduction
                      , Tutorial.T2_Details
