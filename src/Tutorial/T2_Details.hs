@@ -107,6 +107,10 @@ instance 'MonadEffect' ('State' s) m => 'MonadEffect' ('State' s) ('ReaderT' r m
 class 'Effect' (e :: (* -> *) -> *) where
     type 'CanLift' e (t :: (* -> *) -> * -> *) :: 'Constraint'
     type 'CanLift' e t = 'MonadTrans' t
+
+    type ExtraConstraint e (m :: * -> *) :: Constraint
+    type ExtraConstraint e m = ()
+
     'liftThrough' ::
         ('CanLift' e t, 'Monad' m, 'Monad' (t m))
         => e m -> e (t m)
@@ -126,6 +130,14 @@ data 'State' s m = 'StateMethods'
     Then there's the 'CanLift' associated type. It specifies the constraint that a transformer needs to satisfy
     to be able to lift the effect through it. Usually, 'MonadTrans' is all you need, so that's the
     default instantiation. Some more complicated effects have tighter demands.
+
+    The `ExtraConstraint` associated type lets you put additional requirements on monads that support
+    your effect. The motivation for this extra constraint is that it allows to have parameters on
+    your effect (like the @s@ parameter in @'State' s@) but still allow only one instantiation of
+    it. For example, you can't have a function with multiple different states. This restriction
+    makes type inferrence much better in some cases and doesn't seem to get in the way too much in
+    practice. If you do end up needing multiple states, check out the "Control.Effects.Newtype"
+    module.
 
     The 'liftThrough' function gets an implementation of the effect @e@ in the monad @m@ and is
     required to provide an implementation in the monad @t m@. Here's how it might look for the

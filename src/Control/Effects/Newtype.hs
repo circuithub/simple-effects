@@ -56,10 +56,10 @@ tagEffect = effectAsNewtype @(EffTag tag original)
 --
 -- @
 --    f :: 'MonadEffect' ('State' Int) m => m ()
---    f = 'getState' >>= \s -> 'setState' (s * 2)
+--    f = 'getState' >>= \\s -> 'setState' (s * 2)
 --
 --    g :: 'MonadEffect' ('State' Int) m => m ()
---    g = 'getState' >>= \s -> 'setState' (s * 3)
+--    g = 'getState' >>= \\s -> 'setState' (s * 3)
 --
 --    combine :: Monad m => m Int
 --    combine =
