@@ -6,6 +6,8 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-| The @'Yield' a@ effect lets a computation produce values of type @a@ during it's execution. -}
 module Control.Effects.Yield where
 
@@ -21,7 +23,10 @@ import Control.Concurrent.Chan
 newtype Yield a m = YieldMethods
     { _yield :: a -> m () }
     deriving (Generic)
-instance Effect (Yield a)
+instance Effect (Yield a) where
+    type ExtraConstraint (Yield a) m = UniqueEffect Yield m a
+
+instance UniqueEffect Yield (RuntimeImplemented (Yield a) m) a
 
 -- | Output a value of type @a@. The semantics are determined by the implementation, but usually this
 --   will block until the next value is requested by the consumer.
@@ -61,7 +66,7 @@ implementYieldViaNonDeterminism m = m
 --   [Note]
 --      'yield' will block in this implementation.
 implementYieldViaMVar ::
-    forall a m b. (MonadIO m, MonadEffect Async m)
+    forall a thread m b. (MonadIO m, MonadEffect (Async thread) m)
     => RuntimeImplemented (Yield a) m b -> m (m (Maybe a))
 implementYieldViaMVar m = do
     mv <- liftIO newEmptyMVar
@@ -91,7 +96,7 @@ implementYieldViaMVar m = do
 --  [Note]
 --      'yield' will /not/ block in this implementation.
 implementYieldViaChan ::
-    forall a m b. (MonadIO m, MonadEffect Async m)
+    forall a thread m b. (MonadIO m, MonadEffect (Async thread) m)
     => RuntimeImplemented (Yield a) m b -> m (m (Maybe a))
 implementYieldViaChan m = do
     ch <- liftIO newChan

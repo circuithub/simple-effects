@@ -81,7 +81,7 @@ main = do
     putStrLn "Parallel test done"
 
 parallelTest ::
-    (MonadEffects '[Async, NonDeterminism] m, MonadIO m) => m (AsyncThread m (Int, Char))
+    (MonadEffects '[Async thread, NonDeterminism] m, MonadIO m) => m (thread m (Int, Char))
 parallelTest = do
     n <- choose [1,2,3,4]
     async $ do
@@ -99,7 +99,7 @@ mainAsync = do
             )
 
 yieldTest ::
-    (MonadEffects '[Yield Int, Async] m, MonadIO m) => m ()
+    (MonadEffects '[Yield Int, Async thread] m, MonadIO m) => m ()
 yieldTest = do
     yield @Int 5
     t <- async $ do
