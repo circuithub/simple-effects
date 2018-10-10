@@ -16,8 +16,8 @@ class Effect (e :: (* -> *) -> *) where
     type CanLift e (t :: (* -> *) -> * -> *) :: Constraint
     type CanLift e t = MonadTrans t
 
-    type MonadConstraint e (m :: * -> *) :: Constraint
-    type MonadConstraint e m = ()
+    type ExtraConstraint e (m :: * -> *) :: Constraint
+    type ExtraConstraint e m = ()
 
     liftThrough ::
         forall t m. (CanLift e t, Monad m, Monad (t m))
@@ -35,13 +35,13 @@ class Effect (e :: (* -> *) -> *) where
         => m (e m) -> e m
     mergeContext = genericMergeContext
 
-class (Effect e, Monad m, MonadConstraint e m) => MonadEffect e m where
+class (Effect e, Monad m, ExtraConstraint e m) => MonadEffect e m where
     effect :: e m
     default effect :: (MonadEffect e m', Monad (t m'), CanLift e t, t m' ~ m) => e m
     effect = liftThrough effect
 
 instance {-# OVERLAPPABLE #-}
-    (MonadEffect e m, Monad (t m), CanLift e t, MonadConstraint e (t m))
+    (MonadEffect e m, Monad (t m), CanLift e t, ExtraConstraint e (t m))
     => MonadEffect e (t m) where
     effect = liftThrough effect
 
@@ -71,7 +71,7 @@ instance RunnableTrans (RuntimeImplemented e) where
     restoreTransState = return
     runTransformer (RuntimeImplemented m) = runReaderT m
 
-instance (Effect e, Monad m, CanLift e (RuntimeImplemented e), MonadConstraint e (RuntimeImplemented e m))
+instance (Effect e, Monad m, CanLift e (RuntimeImplemented e), ExtraConstraint e (RuntimeImplemented e m))
     => MonadEffect e (RuntimeImplemented e m) where
     effect = mergeContext $ RuntimeImplemented (liftThrough <$> ask)
 

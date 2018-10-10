@@ -27,7 +27,7 @@ data State s m = StateMethods
     , _setState :: s -> m () }
     deriving (Generic)
 instance Effect (State s) where
-    type MonadConstraint (State s) m = UniqueEffect State m s
+    type ExtraConstraint (State s) m = UniqueEffect State m s
 
 -- | Get current value of the state with the type 's'.
 -- You can use type applications to tell the type checker which type of state you want.
@@ -72,8 +72,3 @@ implementStateViaIORef initial m = do
     ref <- liftIO (newIORef initial)
     m & implement (StateMethods (liftIO (readIORef  ref)) (liftIO . writeIORef ref))
 {-# INLINE implementStateViaIORef #-}
-
-test :: MonadEffect (State Int) m => m ()
-test = do
-    s <- getState
-    setState s
