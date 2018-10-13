@@ -124,6 +124,8 @@ myFunc = do
 main :: IO ()
 main = do
     'implement' (FilesMethods 'B.readFile' 'B.writeFile') myFunc
+    -- *NOTE* The readFile and writeFile functions used here are *not* the ones we defined above
+    -- They're imported from the Data.ByteString module
 @
 
     Here we implemented our effect using the 'B.readFile' and 'B.writeFile' functions from the
