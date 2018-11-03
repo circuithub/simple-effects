@@ -87,3 +87,9 @@ instance MonadEffect (Async AsyncThread) IO where
 --   @'MonadEffect' 'Async' IO@ instance which uses the @async@ package.
 implementAsyncViaIO :: IO a -> IO a
 implementAsyncViaIO = id
+
+parallelMapM :: (MonadEffect (Async thread) m, Traversable t) => (a -> m b) -> t a -> m (t b)
+parallelMapM f = mapM waitAsync <=< mapM (async . f)
+
+parallelMapM_ :: (MonadEffect (Async thread) m, Traversable t) => (a -> m b) -> t a -> m ()
+parallelMapM_ f = mapM_ waitAsync <=< mapM (async . f)
