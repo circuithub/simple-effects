@@ -2,7 +2,13 @@ name:                simple-effects
 version:             0.13.0.0
 synopsis:            A simple effect system that integrates with MTL
 description:
-    This package lets you do any of the following:
+    Some of the things you can do with this package:
+    .
+    * Declare and check which side-effects your function uses
+    * Dependency injection
+    * Test effectful code
+    * Avoid the \(n \times k\) instance problem
+    * Define custom effects with very little programming overhead
     .
     === Declare and check which side-effects your function uses
     .
@@ -11,9 +17,13 @@ description:
     .
     > getProductAndWriteToFile :: MonadEffects '[Database, FileSystem] m => ProductId -> FilePath -> m ()
     .
+    This way you can be sure that your @harmlessFunction@ doesn't do unexpected things behind your
+    back. The compiler makes sure that all the effects are accounted for in the function's type.
+    .
     === Dependency injection
     .
-    Functions are not tied to any specific implementation of an effect. Code like this
+    Functions are not tied to any specific implementation of an effect meaning you can swap out
+    different implementations without changing your code. Code like this
     .
     > myFunction :: MonadEffects '[Time, Logging] m => m ()
     > myFunction = do
@@ -65,6 +75,9 @@ description:
     .
     === Define custom effects with very little programming overhead
     .
+    Lets say we need a way to get coordinates for some address. Here's how we'd declare that
+    functionality.
+    .
     @
     data Geolocation m = GeolocationMethods
     &#32;   &#x7b; _getLocation :: Address -> m Coordinates &#x7d;
@@ -81,7 +94,7 @@ description:
     >     addr <- liftIO readLn
     >     getLocation addr
     .
-    ==== Check out the tutorial modules for more details
+    ==== <Tutorial-T1_Introduction.html Check out the tutorial modules for more details>
     .
 homepage:            https://gitlab.com/LukaHorvat/simple-effects
 license:             BSD3
