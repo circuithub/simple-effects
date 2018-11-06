@@ -113,7 +113,6 @@ library
                      , Control.Effects.List
                      , Control.Effects.Signal
                      , Control.Effects.Early
-                     , Control.Effects.Parallel
                      , Control.Effects.Generic
                      , Control.Effects.Async
                      , Control.Effects.Yield
