@@ -15,10 +15,13 @@ import Import
 import Control.Effects
 import qualified Control.Concurrent.Async as Async
 import Control.Monad.Runnable
+import Data.Maybe
 
 data Async thread m = AsyncMethods
     { _async :: forall a. m a -> m (thread m a)
-    , _waitAsync :: forall a. thread m a -> m a }
+    , _waitAsync :: forall a. thread m a -> m a
+    , _isAsyncDone :: forall a n. thread n a -> m Bool
+    , _cancelAsync :: forall a n. thread n a -> m () }
 
 class ThreadIdentifier thread where
     mapThread :: (m a -> n b) -> thread m a -> thread n b
@@ -29,7 +32,9 @@ instance ThreadIdentifier thread => Effect (Async thread) where
     mergeContext mm = AsyncMethods
         (\a -> mm >>= ($ a) . _async)
         (\a -> mm >>= ($ a) . _waitAsync)
-    liftThrough (AsyncMethods f g) = AsyncMethods
+        (\a -> mm >>= ($ a) . _isAsyncDone)
+        (\a -> mm >>= ($ a) . _cancelAsync)
+    liftThrough (AsyncMethods f g h i) = AsyncMethods
         (\tma -> do
             st <- currentTransState
             !res <- lift (f (runTransformer tma st))
@@ -40,6 +45,8 @@ instance ThreadIdentifier thread => Effect (Async thread) where
             res <- lift (g (mapThread (`runTransformer` st) a))
             restoreTransState res
             )
+        (lift . h)
+        (lift . i)
 
 -- | Fork a new thread to run the given computation. The monadic context is forked into the new
 --   thread.
@@ -64,7 +71,13 @@ async :: MonadEffect (Async thread) m => m a -> m (thread m a)
 --  print =<< 'getState' \@Int -- Outputs 2
 -- @
 waitAsync :: MonadEffect (Async thread) m => thread m a -> m a
-AsyncMethods async waitAsync = effect
+
+-- | Check if the asynchronous computation has finished (either normally, or with an exception)
+isAsyncDone :: MonadEffect (Async thread) m => thread n a -> m Bool
+
+-- | Abort the asynchronous exception
+cancelAsync :: MonadEffect (Async thread) m => thread n a -> m ()
+AsyncMethods async waitAsync isAsyncDone cancelAsync = effect
 
 -- | The type that represents the forked computation in the monad @m@ that eventually computes
 --   a value of type @a@. Depending on the monad, the computation may produce zero, one or even
@@ -81,6 +94,8 @@ instance MonadEffect (Async AsyncThread) IO where
     effect = AsyncMethods
         (fmap (AsyncThread . fmap return) . Async.async)
         (\(AsyncThread as) -> join (Async.wait as))
+        (\(AsyncThread as) -> isJust <$> Async.poll as)
+        (\(AsyncThread as) -> Async.cancel as)
 
 -- | This will discard the @'MonadEffect' 'Async' m@ constraint by forcing @m@ to be 'IO'.
 --   The functions doesn't actually do anything, the real implementation is given by the
@@ -88,8 +103,11 @@ instance MonadEffect (Async AsyncThread) IO where
 implementAsyncViaIO :: IO a -> IO a
 implementAsyncViaIO = id
 
+-- | Like 'mapM' but the supplied function is run in parallel asynchronously on all the elements.
+--   The results will be in the same order as the inputs.
 parallelMapM :: (MonadEffect (Async thread) m, Traversable t) => (a -> m b) -> t a -> m (t b)
 parallelMapM f = mapM waitAsync <=< mapM (async . f)
 
+-- | Same as 'parallelMapM_' but discards the result.
 parallelMapM_ :: (MonadEffect (Async thread) m, Traversable t) => (a -> m b) -> t a -> m ()
 parallelMapM_ f = mapM_ waitAsync <=< mapM (async . f)
