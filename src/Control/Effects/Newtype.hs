@@ -16,13 +16,13 @@ import Control.Effects.State
 --   newtype over the @original@ effect.
 --
 -- @
---    f :: 'MonadEffect' ('State' Int) m => m ()
---    f = getState >>= \i -> setState (i + 1)
+-- f :: 'MonadEffect' ('State' Int) m => m ()
+-- f = getState >>= \i -> setState (i + 1)
 --
---    newtype MyState m = MyState ('State' Int m)
+-- newtype MyState m = MyState ('State' Int m)
 --
---    -- inferred: g :: 'MonadEffect' MyState m => m ()
---    g = 'effectAsNewtype' \@MyState \@('State' Int) f
+-- -- inferred: g :: 'MonadEffect' MyState m => m ()
+-- g = 'effectAsNewtype' \@MyState \@('State' Int) f
 -- @
 effectAsNewtype :: forall newtyped original m a.
     (MonadEffect newtyped m, Coercible (newtyped m) (original m))
@@ -55,20 +55,20 @@ tagEffect = effectAsNewtype @(EffTag tag original)
 --   when you want to handle it. This function doees the wrapping for you.
 --
 -- @
---    f :: 'MonadEffect' ('State' Int) m => m ()
---    f = 'getState' >>= \\s -> 'setState' (s * 2)
+-- f :: 'MonadEffect' ('State' Int) m => m ()
+-- f = 'getState' >>= \\s -> 'setState' (s * 2)
 --
---    g :: 'MonadEffect' ('State' Int) m => m ()
---    g = 'getState' >>= \\s -> 'setState' (s * 3)
+-- g :: 'MonadEffect' ('State' Int) m => m ()
+-- g = 'getState' >>= \\s -> 'setState' (s * 3)
 --
---    combine :: Monad m => m Int
---    combine =
---        'implementStateViaStateT' 5 $ 'implementTagged' \@"s2" ('StateMethods' 'getState' 'setState')
---        $ 'implementStateViaStateT' 0 $ 'implementTagged' \@"s1" ('StateMethods' 'getState' 'setState')
---        $ do
---        r1 \<- 'tagEffect' \@"s1" \@('State' Int) (f >> 'getState')
---        r2 \<- 'tagEffect' \@"s2" \@('State' Int) (g >> 'getState')
---        return (r1 + r2) -- results in 15
+-- combine :: Monad m => m Int
+-- combine =
+--     'implementStateViaStateT' 5 $ 'implementTagged' \@"s2" ('StateMethods' 'getState' 'setState')
+--     $ 'implementStateViaStateT' 0 $ 'implementTagged' \@"s1" ('StateMethods' 'getState' 'setState')
+--     $ do
+--     r1 \<- 'tagEffect' \@"s1" \@('State' Int) (f >> 'getState')
+--     r2 \<- 'tagEffect' \@"s2" \@('State' Int) (g >> 'getState')
+--     return (r1 + r2) -- results in 15
 -- @
 implementTagged :: forall tag original m a.
     original m -> RuntimeImplemented (EffTag tag original) m a -> m a
