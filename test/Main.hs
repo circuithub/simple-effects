@@ -7,7 +7,6 @@ import Control.Monad.IO.Class
 import Control.Monad
 import Control.Effects.Signal
 import Control.Effects.State
-import Control.Effects.Parallel
 import Control.Effects.Early
 import Control.Effects.Async
 import Control.Effects.List
@@ -76,7 +75,7 @@ main = do
     putStrLn "Sequential test done"
     putStrLn "Starting parallel test"
     implementStateViaStateT (0 :: Int) $ do
-        res <- parallelWithSequence (replicate 8 task)
+        res <- parallelMapM id (replicate 8 task)
         mapM_ (liftIO . print) res
     putStrLn "Parallel test done"
 
