@@ -11,6 +11,7 @@ import Import hiding (liftThrough)
 import Control.Monad.Runnable
 import Control.Effects.Generic
 import GHC.Generics
+import Control.Monad.Fail (MonadFail)
 
 class Effect (e :: (* -> *) -> *) where
     type CanLift e (t :: (* -> *) -> * -> *) :: Constraint
@@ -49,7 +50,7 @@ newtype RuntimeImplemented e m a = RuntimeImplemented
     { getRuntimeImplemented :: ReaderT (e m) m a }
     deriving
         ( Functor, Applicative, Monad, MonadPlus, Alternative, MonadState s, MonadIO, MonadCatch
-        , MonadThrow, MonadRandom, MonadMask )
+        , MonadThrow, MonadRandom, MonadMask, MonadFail )
 
 instance MonadTrans (RuntimeImplemented e) where
     lift = RuntimeImplemented . lift
