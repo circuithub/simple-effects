@@ -1,6 +1,9 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleContexts, ScopedTypeVariables, BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass, MultiParamTypeClasses, FunctionalDependencies, KindSignatures, TypeFamilies, ConstraintKinds, UndecidableInstances, UndecidableSuperClasses, FlexibleInstances, PolyKinds #-}
+{-# LANGUAGE AllowAmbiguousTypes, DerivingStrategies, StandaloneDeriving, GeneralizedNewtypeDeriving #-}
+{-# OPTIONS_GHC -fplugin=Control.Effects.Plugin #-}
 module Main where
 
 import Control.Monad.IO.Class
@@ -12,9 +15,12 @@ import Control.Effects.Async
 import Control.Effects.List
 import Control.Effects.Yield
 import Control.Effects.Resource
+import Control.Effects.Newtype
 import Control.Concurrent hiding (yield)
 import System.IO
-
+import GHC.Generics (Generic)
+import Control.Monad.State hiding (State)
+import Data.Kind
 import Data.Function
 
 -- Should infer
@@ -64,8 +70,8 @@ task = do
     st <- getState
     st `seq` return st
 
-main :: IO ()
-main = do
+mainParallel :: IO ()
+mainParallel = do
     orderTest & handleException (\(_ :: Bool) -> return ())
               & implementStateViaStateT (0 :: Int)
     orderTest & implementStateViaStateT (0 :: Int)
@@ -129,3 +135,6 @@ mainYield = do
 --     (choose [True, False] >>= \tf -> liftIO (putStrLn ("acq " ++ show tf)) >> return tf)
 --     (\tf _ -> liftIO $ putStrLn ("cleaning " ++ show tf))
 --     (\tf -> if tf then liftIO $ putStrLn "true" else error "io err" >> liftIO (putStrLn "false") )
+
+main :: IO ()
+main = return ()

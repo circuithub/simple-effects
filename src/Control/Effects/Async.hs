@@ -7,6 +7,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# OPTIONS_GHC -fplugin=Control.Effects.Plugin #-}
 {-| The 'Async' effect allows you to fork new threads in monads other than just 'IO'.
 -}
 module Control.Effects.Async where
@@ -28,7 +29,6 @@ class ThreadIdentifier thread where
 
 instance ThreadIdentifier thread => Effect (Async thread) where
     type CanLift (Async thread) t = RunnableTrans t
-    type ExtraConstraint (Async thread) m = UniqueEffect Async m thread
     mergeContext mm = AsyncMethods
         (\a -> mm >>= ($ a) . _async)
         (\a -> mm >>= ($ a) . _waitAsync)
@@ -87,10 +87,8 @@ newtype AsyncThread m a = AsyncThread (Async.Async (m a))
 instance ThreadIdentifier AsyncThread where
     mapThread f (AsyncThread as) = AsyncThread (fmap f as)
 
-instance UniqueEffect Async (RuntimeImplemented (Async thread) m) thread
-instance UniqueEffect Async IO AsyncThread
 -- | The 'IO' implementation uses the @async@ library.
-instance MonadEffect (Async AsyncThread) IO where
+instance thread ~ AsyncThread => MonadEffect (Async thread) IO where
     effect = AsyncMethods
         (fmap (AsyncThread . fmap return) . Async.async)
         (\(AsyncThread as) -> join (Async.wait as))

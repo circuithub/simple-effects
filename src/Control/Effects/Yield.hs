@@ -8,6 +8,8 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# OPTIONS_GHC -fplugin=Control.Effects.Plugin #-}
 {-| The @'Yield' a@ effect lets a computation produce values of type @a@ during it's execution. -}
 module Control.Effects.Yield where
 
@@ -22,11 +24,7 @@ import Control.Concurrent.Chan
 
 newtype Yield a m = YieldMethods
     { _yield :: a -> m () }
-    deriving (Generic)
-instance Effect (Yield a) where
-    type ExtraConstraint (Yield a) m = UniqueEffect Yield m a
-
-instance UniqueEffect Yield (RuntimeImplemented (Yield a) m) a
+    deriving (Generic, Effect)
 
 -- | Output a value of type @a@. The semantics are determined by the implementation, but usually this
 --   will block until the next value is requested by the consumer.
