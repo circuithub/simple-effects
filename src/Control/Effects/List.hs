@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables, TypeFamilies, FlexibleContexts, MultiParamTypeClasses #-}
-{-# LANGUAGE DataKinds, GADTs, RankNTypes, NoMonomorphismRestriction #-}
+{-# LANGUAGE DataKinds, GADTs, RankNTypes, NoMonomorphismRestriction, PackageImports #-}
 -- | Add non-determinism to your monad. Uses the 'ListT' transformer under the hood.
 module Control.Effects.List
     ( module Control.Effects.List
@@ -8,7 +8,7 @@ module Control.Effects.List
 import Prelude hiding (splitAt, head)
 import Import
 
-import ListT hiding (take)
+import "list-t" ListT hiding (take)
 
 import Control.Effects
 

@@ -119,6 +119,7 @@ library
                      , Control.Effects.Yield
                      , Control.Effects.Resource
                      , Control.Effects.Newtype
+                     , Control.Effects.Plugin
                      , Control.Monad.Runnable
                      , Tutorial.T1_Introduction
                      , Tutorial.T2_Details
@@ -139,11 +140,14 @@ library
                      , text
                      , bytestring
                      , async
+                     , ghc
+                     , ghc-tcplugins-extra
   ghc-options:         -Wall -O2
 
 test-suite tests
     hs-source-dirs:    test
     main-is:           Main.hs
+    other-modules:     Fundep
     default-language:  Haskell2010
     type:              exitcode-stdio-1.0
     build-depends:     base >= 4.7 && < 5
