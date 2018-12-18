@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts, KindSignatures, PolyKinds #-}
 {-# LANGUAGE TypeFamilies, FlexibleInstances, MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances, DataKinds, NoMonomorphismRestriction #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 -- | Sometimes it's useful to give a new name to an already existing effect. This module provides
 --   the tools to make that easy to do.
 module Control.Effects.Newtype where

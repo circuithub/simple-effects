@@ -1,4 +1,5 @@
 {-# LANGUAGE PackageImports #-}
+{-# OPTIONS_GHC -Wno-deprecations #-}
 module Import (module X) where
 
 import Control.Applicative as X
