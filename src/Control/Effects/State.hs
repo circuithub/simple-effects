@@ -44,7 +44,7 @@ StateMethods getState setState = effect
 -- @modifyState \@Int (+ 1)@
 modifyState :: forall s m. MonadEffect (State s) m => (s -> s) -> m ()
 modifyState f = do
-    s <- getState @s
+    s <- getState
     let s' = f s
     s' `seq` setState s'
 
