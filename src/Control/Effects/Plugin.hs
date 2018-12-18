@@ -10,7 +10,7 @@ import GHC.TcPluginM.Extra (lookupModule, lookupName)
 import FastString (fsLit)
 import Module     (mkModuleName)
 import OccName    (mkTcOcc)
-import Plugins    (Plugin (..), defaultPlugin)
+import Plugins    (Plugin (..), defaultPlugin, PluginRecompile(..))
 import TcPluginM  (TcPluginM, tcLookupClass)
 import TcRnTypes
 import TyCoRep    (Type (..))
@@ -22,7 +22,9 @@ import TcSMonad hiding (tcLookupClass)
 import CoAxiom
 
 plugin :: Plugin
-plugin = defaultPlugin { tcPlugin = const (Just fundepPlugin) }
+plugin = defaultPlugin
+    { tcPlugin = const (Just fundepPlugin)
+    , pluginRecompile = const (return NoForceRecompile) }
 
 fundepPlugin :: TcPlugin
 fundepPlugin = TcPlugin
