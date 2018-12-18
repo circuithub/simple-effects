@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards, NamedFieldPuns, NoMonomorphismRestriction #-}
+{-# LANGUAGE CPP #-}
 module Control.Effects.Plugin
   ( plugin )
 where
@@ -10,7 +11,11 @@ import GHC.TcPluginM.Extra (lookupModule, lookupName)
 import FastString (fsLit)
 import Module     (mkModuleName)
 import OccName    (mkTcOcc)
-import Plugins    (Plugin (..), defaultPlugin, PluginRecompile(..))
+import Plugins    (Plugin (..), defaultPlugin
+#if __GLASGOW_HASKELL__ >= 806
+    , PluginRecompile(..)
+#endif
+    )
 import TcPluginM  (TcPluginM, tcLookupClass)
 import TcRnTypes
 import TyCoRep    (Type (..))
@@ -24,7 +29,10 @@ import CoAxiom
 plugin :: Plugin
 plugin = defaultPlugin
     { tcPlugin = const (Just fundepPlugin)
-    , pluginRecompile = const (return NoForceRecompile) }
+#if __GLASGOW_HASKELL__ >= 806
+    , pluginRecompile = const (return NoForceRecompile)
+#endif
+    }
 
 fundepPlugin :: TcPlugin
 fundepPlugin = TcPlugin
