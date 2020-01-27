@@ -29,9 +29,6 @@ class Effect (e :: (* -> *) -> *) where
     type Transformation e :: (Type -> Type) -> (Type -> Type) -> Type
     type Transformation e = Covariant
 
-    type CanLift e (t :: (* -> *) -> * -> *) :: Constraint
-    type CanLift e t = MonadTrans t
-
     type ExtraConstraint e (m :: * -> *) :: Constraint
     type ExtraConstraint e m = ()
 
@@ -41,21 +38,15 @@ class Effect (e :: (* -> *) -> *) where
         => Transformation e m n -> e m -> e n
     emap (Covariant nat) = genericEmap nat
 
-    liftThrough ::
-        forall t m. (CanLift e t, Monad m, Monad (t m))
-        => e m -> e (t m)
-    default liftThrough ::
-        forall t m.
-        ( Generic (e m), MonadTrans t, Monad m, Monad (t m)
-        , SimpleMethods e m t )
-        => e m -> e (t m)
-    liftThrough = genericLiftThrough
-
     mergeContext :: Monad m => m (e m) -> e m
     default mergeContext ::
         (Generic (e m), MonadicMethods e m)
         => m (e m) -> e m
     mergeContext = genericMergeContext
+
+liftThrough :: forall (e :: (* -> *) -> *) t m. 
+    (Effect e, LiftableTransformer (Transformation e) t m) => e m -> e (t m)
+liftThrough = emap transformation
 
 class (Effect e, Monad m, ExtraConstraint e m) => MonadEffect e m where
     effect :: e m
@@ -97,7 +88,9 @@ instance RunnableTrans (RuntimeImplemented e) where
     restoreTransState = return
     runTransformer (RuntimeImplemented m) = runReaderT m
 
-instance (Effect e, Monad m, CanLift e (RuntimeImplemented e), ExtraConstraint e (RuntimeImplemented e m))
+instance 
+    ( Effect e, Monad m, ExtraConstraint e (RuntimeImplemented e m)
+    , LiftableTransformer (Transformation e) (RuntimeImplemented e) m)
     => MonadEffect e (RuntimeImplemented e m) where
     effect = mergeContext $ RuntimeImplemented (liftThrough <$> ask)
 

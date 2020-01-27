@@ -22,7 +22,6 @@ import Control.Monad.Trans.Except
 import qualified GHC.TypeLits as TL
 import GHC.TypeLits (TypeError, ErrorMessage(..))
 import Control.Effects
-import Control.Monad.Runnable
 import GHC.Generics
 import qualified Data.Text as T
 
@@ -150,19 +149,11 @@ showAllExceptions =
 newtype HandleException e m = HandleExceptionMethods
     { _handleWithoutDiscarding :: forall a. (e -> m a) -> m a -> m a  }
 instance Effect (HandleException e) where
-    type CanLift (HandleException e) t = RunnableTrans t
     type Transformation (HandleException e) = Invariant
     emap Invariant{..} (HandleExceptionMethods rec') = HandleExceptionMethods $ \f e -> do
         st <- currentState
         res <- mToN (rec' (\ex -> run (f ex) st) (run e st))
         restoreState res
-    liftThrough ::
-        forall t m. (CanLift (HandleException e) t, Monad m, Monad (t m))
-        => HandleException e m -> HandleException e (t m)
-    liftThrough (HandleExceptionMethods rec') = HandleExceptionMethods $ \f e -> do
-        st <- currentTransState
-        res <- lift (rec' (\ex -> runTransformer (f ex) st) (runTransformer e st))
-        restoreTransState res
     mergeContext m = HandleExceptionMethods $ \f ex -> do
         g <- _handleWithoutDiscarding <$> m
         g f ex

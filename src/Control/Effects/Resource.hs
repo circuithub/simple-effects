@@ -38,7 +38,6 @@ newtype Bracket m = BracketMethods
         -> (resource -> m result)
         -> m result }
 instance Effect Bracket where
-    type CanLift Bracket t = (RunnableTrans t, Unexceptional t)
     type Transformation Bracket = BracketInvariant
 
     emap :: forall m n. BracketInvariant m n -> Bracket m -> Bracket n
@@ -59,25 +58,6 @@ instance Effect Bracket where
                     a <- restoreState tra
                     use a))
             restoreState res
-    liftThrough :: forall m t. (RunnableTrans t, Monad (t m), Monad m)
-        => Bracket m -> Bracket (t m)
-    liftThrough (BracketMethods f) = BracketMethods g
-        where
-        g :: forall a b c. t m a -> (a -> Maybe c -> t m b) -> (a -> t m c) -> t m c
-        g acq cleanup use = do
-            st <- currentTransState
-            res <- lift (f
-                (runTransformer acq st)
-                (\tra mtrc -> flip runTransformer st $ do
-                    a <- restoreTransState tra
-                    c <- case mtrc of
-                        Nothing -> return Nothing
-                        Just trc -> Just <$> restoreTransState trc
-                    cleanup a c)
-                (\tra -> flip runTransformer st $ do
-                    a <- restoreTransState tra
-                    use a))
-            restoreTransState res
     mergeContext mm = BracketMethods $ \acq cln use -> do
         BracketMethods f <- mm
         f acq cln use

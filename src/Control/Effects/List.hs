@@ -16,7 +16,6 @@ newtype NonDeterminism m = NonDeterminismMethods
     { _choose :: forall a. [a] -> m a }
 instance Effect NonDeterminism where
     emap (Covariant nat) (NonDeterminismMethods c) = NonDeterminismMethods (nat . c)
-    liftThrough (NonDeterminismMethods c) = NonDeterminismMethods (lift . c)
     mergeContext m = NonDeterminismMethods (\a -> do
         lm <- m
         _choose lm a)

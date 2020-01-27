@@ -18,7 +18,6 @@ module Control.Effects.Async where
 import Import
 import Control.Effects
 import qualified Control.Concurrent.Async as Async
-import Control.Monad.Runnable
 import Data.Maybe
 
 data Async thread m = AsyncMethods
@@ -31,7 +30,6 @@ class ThreadIdentifier thread where
     mapThread :: (m a -> n b) -> thread m a -> thread n b
 
 instance ThreadIdentifier thread => Effect (Async thread) where
-    type CanLift (Async thread) t = RunnableTrans t
     type Transformation (Async thread) = Invariant
     mergeContext mm = AsyncMethods
         (\a -> mm >>= ($ a) . _async)
@@ -51,19 +49,6 @@ instance ThreadIdentifier thread => Effect (Async thread) where
             )
         (mToN . h)
         (mToN . i)
-    liftThrough (AsyncMethods f g h i) = AsyncMethods
-        (\tma -> do
-            st <- currentTransState
-            !res <- lift (f (runTransformer tma st))
-            return $ mapThread (lift >=> restoreTransState) res
-            )
-        (\a -> do
-            st <- currentTransState
-            res <- lift (g (mapThread (`runTransformer` st) a))
-            restoreTransState res
-            )
-        (lift . h)
-        (lift . i)
 
 -- | Fork a new thread to run the given computation. The monadic context is forked into the new
 --   thread.
