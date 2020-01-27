@@ -1,3 +1,4 @@
+{-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FunctionalDependencies #-}
@@ -24,6 +25,8 @@ import GHC.Generics
 import Control.Monad.Fail (MonadFail)
 import Data.Kind
 import Control.Effects.Order
+import Control.Monad.IO.Unlift
+import Control.Monad.Primitive
 
 class Effect (e :: (* -> *) -> *) where
     type Transformation e :: (Type -> Type) -> (Type -> Type) -> Type
@@ -66,7 +69,12 @@ newtype RuntimeImplemented e m a = RuntimeImplemented
     { getRuntimeImplemented :: ReaderT (e m) m a }
     deriving
         ( Functor, Applicative, Monad, MonadPlus, Alternative, MonadState s, MonadIO, MonadCatch
-        , MonadThrow, MonadRandom, MonadMask, MonadFail )
+        , MonadThrow, MonadRandom, MonadMask, MonadFail, PrimMonad )
+
+instance MonadUnliftIO m => MonadUnliftIO (RuntimeImplemented e m) where
+    askUnliftIO = RuntimeImplemented $ do
+        unl <- askUnliftIO
+        return (UnliftIO (\m -> unliftIO unl (getRuntimeImplemented m)))
 
 instance MonadTrans (RuntimeImplemented e) where
     lift = RuntimeImplemented . lift
