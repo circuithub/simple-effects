@@ -120,6 +120,7 @@ library
                      , Control.Effects.Resource
                      , Control.Effects.Newtype
                      , Control.Effects.Plugin
+                     , Control.Effects.Order
                      , Control.Monad.Runnable
                      , Tutorial.T1_Introduction
                      , Tutorial.T2_Details

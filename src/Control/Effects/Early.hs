@@ -42,6 +42,7 @@ newtype EarlyValue a = EarlyValue { getEarlyValue :: a }
 newtype Early a m = EarlyMethods
     { _earlyReturn :: forall b. a -> m b }
 instance Effect (Early a) where
+    emap (Covariant nat) (EarlyMethods f) = EarlyMethods (nat . f)
     liftThrough (EarlyMethods f) = EarlyMethods (lift . f)
     mergeContext m = EarlyMethods (\a -> do
         f <- _earlyReturn <$> m

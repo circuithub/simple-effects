@@ -35,6 +35,8 @@ effectAsNewtype = implement (coerce (effect @newtyped :: newtyped m))
 newtype EffTag (tag :: k) e (m :: * -> *) = EffTag (e m)
 instance Effect e => Effect (EffTag tag e) where
     type CanLift (EffTag tag e) t = CanLift e t
+    type Transformation (EffTag tag e) = Transformation e
+    emap trans (EffTag e) = EffTag (emap trans e)
     liftThrough (EffTag e) = EffTag (liftThrough e)
     mergeContext m = EffTag (mergeContext (fmap coerce m))
 

@@ -125,5 +125,61 @@ genericMergeContext = mergeMonadicMethods
 
 
 
+class (Generic (a m), Generic (a n), MapSimpleMethodsRep (Rep (a m)) (Rep (a n)) m n)
+    => GenericEmap a (m :: * -> *) (n :: * -> *) where
+    emapSimple :: (forall x. m x -> n x) -> a m -> a n
+instance (Generic (a m), Generic (a n), MapSimpleMethodsRep (Rep (a m)) (Rep (a n)) m n)
+    => GenericEmap a m n where
+    emapSimple f = Gen.to . emapSimpleRep @(Rep (a m)) @(Rep (a n)) @m @n f . Gen.from
+
+class MapSimpleMethodsRep r r' (m :: * -> *) (n :: * -> *) where
+    emapSimpleRep :: (forall y. m y -> n y) -> r x -> r' x
+instance MapSimpleMethodsRep c c' m n => MapSimpleMethodsRep (M1 a b c) (M1 a b c') m n where
+    emapSimpleRep f (M1 x) = M1 (emapSimpleRep @c @c' @m @n f x)
+instance (MapSimpleMethodsRep a a' m n, MapSimpleMethodsRep b b' m n)
+    => MapSimpleMethodsRep (a :*: b) (a' :*: b') m n where
+    emapSimpleRep f (a :*: b) = emapSimpleRep @a @a' @m @n f a :*: emapSimpleRep @b @b' @m @n f b
+instance (MapSimpleMethodsRep a a' m n, MapSimpleMethodsRep b b' m n)
+    => MapSimpleMethodsRep (a :+: b) (a' :+: b') m n where
+    emapSimpleRep f (L1 a) = L1 (emapSimpleRep @a @a' @m @n f a)
+    emapSimpleRep f (R1 b) = R1 (emapSimpleRep @b @b' @m @n f b)
+instance MapSimpleMethodsRep U1 U1 m n where
+    emapSimpleRep _ U1 = U1
+instance MapSimpleMethodsRep V1 V1 m n where
+    emapSimpleRep _ v = case v of {}
+instance MapSimpleMethod a a' m n
+    => MapSimpleMethodsRep (K1 x a) (K1 x a') m n where
+    emapSimpleRep f (K1 m) = K1 (emapSimpleMethod @a @a' @m @n f m)
+
+class MapSimpleMethod f ft (m :: * -> *) (n :: * -> *) where
+    emapSimpleMethod :: (forall x. m x -> n x) -> f -> ft
+instance MapSimpleMethod f ft m n => MapSimpleMethod (a -> f) (a -> ft) m n where
+    emapSimpleMethod nat f a = emapSimpleMethod @f @ft @m @n nat (f a)
+instance {-# OVERLAPPABLE #-}
+    ForceError (TypeError
+        ('Text "Parameters of methods can't depend on the monadic context."
+        ':$$: 'Text "The parameter `" ':<>: 'ShowType a ':<>: 'Text "` depends on `"
+        ':<>: 'ShowType m ':<>: 'Text "`"))
+    => MapSimpleMethod (a -> f) (a' -> ft) m n where
+    emapSimpleMethod _ = error "Unreachable"
+instance {-# INCOHERENT #-} MapSimpleMethod (m a) (n a) m n where
+    emapSimpleMethod nat m = nat m
+instance {-# OVERLAPPABLE #-}
+    ForceError (TypeError
+        ('Text "The result of all methods must be monadic."
+        ':$$: 'Text "One of the methods' result is of type `" ':<>: 'ShowType a
+        ':<>: 'Text "`. Maybe try `" ':<>: 'ShowType (m a) ':<>: 'Text "` instead."))
+    => MapSimpleMethod a b m n where
+    emapSimpleMethod _ = error "Unreachable"
+
+genericEmap ::
+    forall n e m. (Generic (e m), GenericEmap e m n)
+    => (forall x. m x -> n x) -> e m -> e n
+genericEmap = emapSimple
+{-# INLINE genericEmap #-}
+
+
+
+
 
 class ForceError (x :: *)

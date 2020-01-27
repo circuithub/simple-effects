@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances, UndecidableInstances, DataKinds, TypeOperators #-}
 {-# LANGUAGE GADTs, DeriveGeneric #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 -- | This effect allows you to "throw" a signal. For the most part signals are the same as checked
 --   exceptions. The difference here is that the handler has the option to provide the value that
@@ -150,6 +151,11 @@ newtype HandleException e m = HandleExceptionMethods
     { _handleWithoutDiscarding :: forall a. (e -> m a) -> m a -> m a  }
 instance Effect (HandleException e) where
     type CanLift (HandleException e) t = RunnableTrans t
+    type Transformation (HandleException e) = Invariant
+    emap Invariant{..} (HandleExceptionMethods rec') = HandleExceptionMethods $ \f e -> do
+        st <- currentState
+        res <- mToN (rec' (\ex -> run (f ex) st) (run e st))
+        restoreState res
     liftThrough ::
         forall t m. (CanLift (HandleException e) t, Monad m, Monad (t m))
         => HandleException e m -> HandleException e (t m)

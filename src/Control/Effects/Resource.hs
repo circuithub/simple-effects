@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts, InstanceSigs, NoMonomorphismRestriction, FlexibleInstances #-}
 {-# LANGUAGE DataKinds, UndecidableInstances, TypeOperators #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE RecordWildCards #-}
 -- | Provides the 'Bracket' effect for handing resource acquisition and safe cleanup.
 module Control.Effects.Resource where
 
@@ -24,6 +25,11 @@ import qualified Control.Monad.Trans.RWS.Lazy as LR
 -- Counter-examples: @'ExceptT' e@, @'ErrorT' e@, 'MaybeT', 'ListT'
 class Unexceptional (t :: (* -> *) -> * -> *)
 
+newtype BracketInvariant m n = BracketInvariant (Invariant m n)
+instance (RunnableTrans t, Monad m, Monad (t m), Unexceptional t) 
+    => LiftableTransformer BracketInvariant t m where
+    transformation = BracketInvariant transformation
+
 newtype Bracket m = BracketMethods
     { _bracket ::
         forall resource result cleanupRes.
@@ -33,6 +39,26 @@ newtype Bracket m = BracketMethods
         -> m result }
 instance Effect Bracket where
     type CanLift Bracket t = (RunnableTrans t, Unexceptional t)
+    type Transformation Bracket = BracketInvariant
+
+    emap :: forall m n. BracketInvariant m n -> Bracket m -> Bracket n
+    emap (BracketInvariant (Invariant {..})) (BracketMethods f) = BracketMethods g
+        where
+        g :: forall a b c. n a -> (a -> Maybe c -> n b) -> (a -> n c) -> n c
+        g acq cleanup use = do
+            st <- currentState
+            res <- mToN (f
+                (run acq st)
+                (\tra mtrc -> flip run st $ do
+                    a <- restoreState tra
+                    c <- case mtrc of
+                        Nothing -> return Nothing
+                        Just trc -> Just <$> restoreState trc
+                    cleanup a c)
+                (\tra -> flip run st $ do
+                    a <- restoreState tra
+                    use a))
+            restoreState res
     liftThrough :: forall m t. (RunnableTrans t, Monad (t m), Monad m)
         => Bracket m -> Bracket (t m)
     liftThrough (BracketMethods f) = BracketMethods g

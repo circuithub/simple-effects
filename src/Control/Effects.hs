@@ -1,24 +1,45 @@
-{-# LANGUAGE TypeFamilies, RankNTypes #-}
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE FlexibleContexts, ScopedTypeVariables, InstanceSigs, UndecidableInstances #-}
-{-# LANGUAGE DefaultSignatures #-}
-{-# LANGUAGE StandaloneDeriving, DataKinds #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE UndecidableSuperClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE UndecidableSuperClasses, FunctionalDependencies, PolyKinds #-}
-module Control.Effects (module Control.Effects) where
+{-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE KindSignatures #-}
+{-# OPTIONS_GHC -Wno-partial-type-signatures #-}
+module Control.Effects (module Control.Effects, module Control.Effects.Order) where
 
 import Import hiding (liftThrough)
 import Control.Monad.Runnable
 import Control.Effects.Generic
 import GHC.Generics
 import Control.Monad.Fail (MonadFail)
+import Data.Kind
+import Control.Effects.Order
 
 class Effect (e :: (* -> *) -> *) where
+    type Transformation e :: (Type -> Type) -> (Type -> Type) -> Type
+    type Transformation e = Covariant
+
     type CanLift e (t :: (* -> *) -> * -> *) :: Constraint
     type CanLift e t = MonadTrans t
 
     type ExtraConstraint e (m :: * -> *) :: Constraint
     type ExtraConstraint e m = ()
+
+    emap :: forall m n. Transformation e m n -> e m -> e n
+    default emap ::
+        forall m n. (Generic (e m), GenericEmap e m n, Transformation e ~ Covariant)
+        => Transformation e m n -> e m -> e n
+    emap (Covariant nat) = genericEmap nat
 
     liftThrough ::
         forall t m. (CanLift e t, Monad m, Monad (t m))
@@ -38,13 +59,17 @@ class Effect (e :: (* -> *) -> *) where
 
 class (Effect e, Monad m, ExtraConstraint e m) => MonadEffect e m where
     effect :: e m
-    default effect :: (MonadEffect e m', Monad (t m'), CanLift e t, t m' ~ m) => e m
-    effect = liftThrough effect
+    default effect ::
+        ( MonadEffect e m', Monad (t m'), MonadTrans t, t m' ~ m
+        , LiftableTransformer (Transformation e) t m' )
+        => e m
+    effect = emap transformation effect
 
 instance {-# OVERLAPPABLE #-}
-    (MonadEffect e m, Monad (t m), CanLift e t, ExtraConstraint e (t m))
+    ( MonadEffect e m, Monad (t m), ExtraConstraint e (t m), MonadTrans t
+    , LiftableTransformer (Transformation e) t m )
     => MonadEffect e (t m) where
-    effect = liftThrough effect
+    effect = emap transformation effect
 
 newtype RuntimeImplemented e m a = RuntimeImplemented
     { getRuntimeImplemented :: ReaderT (e m) m a }

@@ -7,7 +7,10 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# OPTIONS_GHC -fplugin=Control.Effects.Plugin #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-| The 'Async' effect allows you to fork new threads in monads other than just 'IO'.
 -}
 module Control.Effects.Async where
@@ -29,11 +32,25 @@ class ThreadIdentifier thread where
 
 instance ThreadIdentifier thread => Effect (Async thread) where
     type CanLift (Async thread) t = RunnableTrans t
+    type Transformation (Async thread) = Invariant
     mergeContext mm = AsyncMethods
         (\a -> mm >>= ($ a) . _async)
         (\a -> mm >>= ($ a) . _waitAsync)
         (\a -> mm >>= ($ a) . _isAsyncDone)
         (\a -> mm >>= ($ a) . _cancelAsync)
+    emap Invariant{..} (AsyncMethods f g h i) = AsyncMethods
+        (\tma -> do
+            st <- currentState
+            !res <- mToN (f (run tma st))
+            return $ mapThread (mToN >=> restoreState) res
+            )
+        (\a -> do
+            st <- currentState
+            res <- mToN (g (mapThread (`run` st) a))
+            restoreState res
+            )
+        (mToN . h)
+        (mToN . i)
     liftThrough (AsyncMethods f g h i) = AsyncMethods
         (\tma -> do
             st <- currentTransState
@@ -103,9 +120,11 @@ implementAsyncViaIO = id
 
 -- | Like 'mapM' but the supplied function is run in parallel asynchronously on all the elements.
 --   The results will be in the same order as the inputs.
-parallelMapM :: (MonadEffect (Async thread) m, Traversable t) => (a -> m b) -> t a -> m (t b)
-parallelMapM f = mapM waitAsync <=< mapM (async . f)
+parallelMapM :: forall thread m t a b.
+    (MonadEffect (Async thread) m, Traversable t) => (a -> m b) -> t a -> m (t b)
+parallelMapM f = mapM (waitAsync @thread) <=< mapM (async . f)
 
 -- | Same as 'parallelMapM_' but discards the result.
-parallelMapM_ :: (MonadEffect (Async thread) m, Traversable t) => (a -> m b) -> t a -> m ()
-parallelMapM_ f = mapM_ waitAsync <=< mapM (async . f)
+parallelMapM_ :: forall thread m t a b.
+    (MonadEffect (Async thread) m, Traversable t) => (a -> m b) -> t a -> m ()
+parallelMapM_ f = mapM_ (waitAsync @thread) <=< mapM (async . f)
