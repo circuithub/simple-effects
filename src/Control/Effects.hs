@@ -71,10 +71,12 @@ newtype RuntimeImplemented e m a = RuntimeImplemented
         ( Functor, Applicative, Monad, MonadPlus, Alternative, MonadState s, MonadIO, MonadCatch
         , MonadThrow, MonadRandom, MonadMask, MonadFail, PrimMonad )
 
-instance MonadUnliftIO m => MonadUnliftIO (RuntimeImplemented e m) where
-    askUnliftIO = RuntimeImplemented $ do
-        unl <- askUnliftIO
-        return (UnliftIO (\m -> unliftIO unl (getRuntimeImplemented m)))
+instance MonadUnliftIO m => MonadUnliftIO (RuntimeImplemented effect m) where
+  {-# INLINE withRunInIO #-}
+  withRunInIO inner =
+    RuntimeImplemented $ ReaderT $ \r ->
+    withRunInIO $ \run ->
+    inner (run . flip runReaderT r . getRuntimeImplemented)
 
 instance MonadTrans (RuntimeImplemented e) where
     lift = RuntimeImplemented . lift
