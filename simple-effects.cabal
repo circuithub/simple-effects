@@ -109,15 +109,7 @@ extra-source-files:  CHANGELOG.md
 
 library
   exposed-modules:     Control.Effects
-                     , Control.Effects.State
-                     , Control.Effects.Reader
-                     , Control.Effects.List
                      , Control.Effects.Generic
-                     , Control.Effects.Async
-                     , Control.Effects.Yield
-                     , Control.Effects.Resource
-                     , Control.Effects.Newtype
-                     , Control.Effects.Plugin
                      , Control.Effects.Order
                      , Control.Monad.Runnable
   other-modules:       Import
